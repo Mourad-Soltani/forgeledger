@@ -36,3 +36,15 @@ curl -X POST https://YOUR_HOST/api/admin/license/issue \
 ```
 
 — Mourad.Soltani
+
+
+## Cron
+
+```bash
+# inside container or host with curl access to the API
+15 6 * * * FORGELEDGER_PUBLIC_URL=https://YOUR_HOST /path/to/scripts/cron_jobs.sh
+```
+
+Reminder emails include a signed client portal link (14-day TTL by default).
+
+— Mourad.Soltani

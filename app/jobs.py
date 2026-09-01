@@ -6,6 +6,7 @@ from . import models, services
 from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured
 from .pdf_export import build_invoice_pdf
 from .branding import get_brand
+from .portal import mint_portal_token
 import os
 
 
@@ -86,6 +87,12 @@ def run_reminders(db: Session) -> dict:
         msg = build_invoice_email(invoice=inv, client=client, brand=brand, public_url=base)
         prefix = "OVERDUE: " if days < 0 else "Reminder: "
         msg["subject"] = prefix + msg["subject"]
+        try:
+            token = mint_portal_token(client.id)
+            portal = f"{base}/portal/{token}"
+            msg["body"] = msg["body"] + f"\n\nClient portal (view & pay): {portal}\n"
+        except Exception:
+            pass
         pdf_bytes = build_invoice_pdf(inv, client, brand)
         sent = send_invoice_email(msg, pdf_bytes=pdf_bytes)
         results.append(
