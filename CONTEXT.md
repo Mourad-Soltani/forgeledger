@@ -1,28 +1,29 @@
 # Dev-team context snapshot — Mourad.Soltani
 
-Use this file to resume if a free-tier or session limit is hit.
-
 ## Product
-ForgeLedger v1.1.0 — freelance invoice / expense / proposal command center.
+ForgeLedger v1.2.0 — freelance invoice / expense / proposal command center.
 
 ## Done
-- FastAPI app with clients, invoices, expenses, proposals
-- Health endpoint (+ pdf / stripe checks)
-- UI console
-- Pytest suite
-- Sales kit + buyer shortlist
-- GitHub push: https://github.com/Mourad-Soltani/forgeledger
-- PDF invoice export (reportlab)
-- Stripe checkout (demo mode offline; live when STRIPE_SECRET_KEY set)
-- White-label brand API (FORGELEDGER_STUDIO_NAME / FOOTER / HIDE_SIGNATURE)
+- Clients, invoices (multi-line), expenses, proposals
+- Health endpoint (db/api/pdf/stripe)
+- PDF invoice export
+- Stripe checkout (demo + live) + webhook auto-mark paid
+- White-label brand API with license-key gate
+- UI multi-line invoice editor
+- Sales kit + buyer outreach (3 individual emails SENT)
+- GitHub: https://github.com/Mourad-Soltani/forgeledger
+
+## Outreach sent (1:1)
+1. contact@atekatu.agency
+2. hello@alkalyne.design
+3. hello@roguedigital.ai
 
 ## Next
-- Stripe webhook to auto-mark paid
-- Multi-line invoice editor in UI
-- Hosted deploy (Railway / Fly)
-- License key gate for white-label
+- Hosted deploy Dockerfile polish
+- Stripe success page
+- License key issuance admin
 
-## Health command
+## Health
 FORGELEDGER_DB=/tmp/forgeledger-test.db pytest -q
 
 ## Signature

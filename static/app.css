@@ -108,3 +108,14 @@ footer {
 @media (max-width: 860px) {
   .panel.on { grid-template-columns: 1fr; }
 }
+.line-row { display: grid; grid-template-columns: 1fr 70px 90px auto; gap: 0.35rem; margin-bottom: 0.35rem; }
+button.ghost {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font: inherit;
+}
+button.ghost:hover { color: var(--accent); border-color: var(--accent); }

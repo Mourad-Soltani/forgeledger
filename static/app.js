@@ -119,24 +119,52 @@ $("#client-form").addEventListener("submit", async (e) => {
   await boot();
 });
 
+document.getElementById("add-line")?.addEventListener("click", () => {
+  const box = document.getElementById("line-items");
+  const row = document.createElement("div");
+  row.className = "line-row";
+  row.innerHTML = `
+    <input name="item_desc" placeholder="Line item description" required />
+    <input name="qty" type="number" step="0.1" value="1" />
+    <input name="unit_price" type="number" step="0.01" placeholder="Unit price" required />
+    <button type="button" class="ghost remove-line">×</button>`;
+  box.appendChild(row);
+});
+
+document.getElementById("line-items")?.addEventListener("click", (e) => {
+  if (e.target.classList.contains("remove-line")) {
+    const rows = document.querySelectorAll("#line-items .line-row");
+    if (rows.length > 1) e.target.closest(".line-row").remove();
+  }
+});
+
 $("#invoice-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
+  const descs = f.getAll("item_desc");
+  const qtys = f.getAll("qty");
+  const prices = f.getAll("unit_price");
+  const items = descs.map((d, i) => ({
+    description: d,
+    qty: Number(qtys[i] || 1),
+    unit_price: Number(prices[i] || 0),
+  })).filter((x) => x.description);
+  if (!items.length) return;
   await api("/api/invoices", {
     method: "POST",
     body: JSON.stringify({
       client_id: Number(f.get("client_id")),
       status: f.get("status"),
-      items: [
-        {
-          description: f.get("item_desc"),
-          qty: Number(f.get("qty")),
-          unit_price: Number(f.get("unit_price")),
-        },
-      ],
+      items,
     }),
   });
   e.target.reset();
+  const box = document.getElementById("line-items");
+  box.innerHTML = `<div class="line-row">
+    <input name="item_desc" placeholder="Line item description" required />
+    <input name="qty" type="number" step="0.1" value="1" />
+    <input name="unit_price" type="number" step="0.01" placeholder="Unit price" required />
+  </div>`;
   await boot();
 });
 

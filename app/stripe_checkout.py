@@ -1,5 +1,6 @@
-"""Stripe checkout (demo-safe) — Mourad.Soltani / ForgeLedger."""
+"""Stripe checkout + webhook (demo-safe) — Mourad.Soltani / ForgeLedger."""
 
+import json
 import os
 import secrets
 from typing import Optional
@@ -19,10 +20,6 @@ def create_checkout_session(
     success_url: str = "http://127.0.0.1:8080/?paid=1",
     cancel_url: str = "http://127.0.0.1:8080/?canceled=1",
 ) -> dict:
-    """
-    Create a Stripe Checkout Session when STRIPE_SECRET_KEY is set.
-    Otherwise return a demo session so the product stays fully testable offline.
-    """
     key = os.environ.get("STRIPE_SECRET_KEY")
     if not key:
         demo_id = f"cs_demo_{secrets.token_hex(8)}"
@@ -38,7 +35,7 @@ def create_checkout_session(
         }
 
     try:
-        import stripe  # optional dependency
+        import stripe
 
         stripe.api_key = key
         session = stripe.checkout.Session.create(
@@ -83,3 +80,42 @@ def create_checkout_session(
             "error": str(exc),
             "author": "Mourad.Soltani",
         }
+
+
+def parse_webhook_event(payload: bytes, sig_header: Optional[str]) -> dict:
+    secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    if secret and sig_header:
+        try:
+            import stripe
+
+            event = stripe.Webhook.construct_event(payload, sig_header, secret)
+            return {"ok": True, "mode": "live", "event": event, "author": "Mourad.Soltani"}
+        except Exception as exc:
+            return {"ok": False, "mode": "live", "error": str(exc), "author": "Mourad.Soltani"}
+
+    try:
+        body = json.loads(payload.decode() or "{}")
+    except Exception:
+        return {"ok": False, "mode": "demo", "error": "invalid json", "author": "Mourad.Soltani"}
+    return {"ok": True, "mode": "demo", "event": body, "author": "Mourad.Soltani"}
+
+
+def invoice_id_from_event(event) -> Optional[int]:
+    if not event:
+        return None
+    if hasattr(event, "type"):
+        etype = event.type
+        data_obj = event.data.object if event.data else None
+        meta = getattr(data_obj, "metadata", None) or {}
+        if etype == "checkout.session.completed":
+            raw = meta.get("invoice_id") if isinstance(meta, dict) else getattr(meta, "invoice_id", None)
+            return int(raw) if raw is not None else None
+        return None
+    if event.get("type") != "checkout.session.completed":
+        return None
+    meta = (event.get("data") or {}).get("object", {}).get("metadata") or {}
+    raw = meta.get("invoice_id")
+    try:
+        return int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None

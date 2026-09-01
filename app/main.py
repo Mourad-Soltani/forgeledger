@@ -12,7 +12,13 @@ from .database import get_db, init_db
 from . import __version__, __author__
 from .branding import get_brand
 from .pdf_export import build_invoice_pdf
-from .stripe_checkout import create_checkout_session, stripe_configured
+from .stripe_checkout import (
+    create_checkout_session,
+    stripe_configured,
+    parse_webhook_event,
+    invoice_id_from_event,
+)
+from .license import validate_license, active_license
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -194,6 +200,46 @@ def invoice_checkout(invoice_id: int, db: Session = Depends(get_db)):
     if session.get("mode") == "error":
         raise HTTPException(502, session.get("error") or "Checkout failed")
     return session
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature")
+    parsed = parse_webhook_event(payload, sig)
+    if not parsed.get("ok"):
+        raise HTTPException(400, parsed.get("error") or "Webhook rejected")
+    inv_id = invoice_id_from_event(parsed.get("event"))
+    if inv_id is None:
+        return {"received": True, "action": "ignored", "author": "Mourad.Soltani"}
+    inv = db.get(models.Invoice, inv_id)
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    inv.status = "paid"
+    db.commit()
+    return {
+        "received": True,
+        "action": "marked_paid",
+        "invoice_id": inv.id,
+        "number": inv.number,
+        "mode": parsed.get("mode"),
+        "author": "Mourad.Soltani",
+    }
+
+
+@app.post("/api/license/validate")
+def license_validate(payload: dict):
+    key = (payload or {}).get("key") or ""
+    result = validate_license(key)
+    result["author"] = "Mourad.Soltani"
+    return result
+
+
+@app.get("/api/license/status")
+def license_status():
+    status = active_license()
+    status["author"] = "Mourad.Soltani"
+    return status
 
 
 @app.get("/api/expenses", response_model=list[schemas.ExpenseOut])

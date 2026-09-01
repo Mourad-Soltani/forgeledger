@@ -73,9 +73,11 @@ def test_pdf_and_checkout(client):
         json={
             "client_id": c["id"],
             "status": "sent",
-            "items": [{"description": "Design sprint", "qty": 1, "unit_price": 2500}],
+            "items": [{"description": "Design sprint", "qty": 1, "unit_price": 2500},
+                {"description": "Copy deck", "qty": 2, "unit_price": 400}],
         },
     ).json()
+    assert inv["total"] == 3300
     pdf = client.get(f"/api/invoices/{inv['id']}/pdf")
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
@@ -87,3 +89,35 @@ def test_pdf_and_checkout(client):
     brand = client.get("/api/brand").json()
     assert brand["author"] == "Mourad.Soltani"
     assert "ForgeLedger" in brand["footer"]
+
+
+def test_webhook_marks_paid(client):
+    c = client.post("/api/clients", json={"name": "Pay Co"}).json()
+    inv = client.post(
+        "/api/invoices",
+        json={
+            "client_id": c["id"],
+            "status": "sent",
+            "items": [{"description": "Retainer", "qty": 1, "unit_price": 900}],
+        },
+    ).json()
+    body = {
+        "type": "checkout.session.completed",
+        "data": {"object": {"metadata": {"invoice_id": str(inv["id"])}}},
+    }
+    res = client.post("/api/stripe/webhook", json=body)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["action"] == "marked_paid"
+    assert data["author"] == "Mourad.Soltani"
+    listed = client.get("/api/invoices").json()
+    match = next(x for x in listed if x["id"] == inv["id"])
+    assert match["status"] == "paid"
+
+
+def test_license_validate(client):
+    bad = client.post("/api/license/validate", json={"key": "nope"}).json()
+    assert bad["valid"] is False
+    assert bad["author"] == "Mourad.Soltani"
+    status = client.get("/api/license/status").json()
+    assert "tier" in status

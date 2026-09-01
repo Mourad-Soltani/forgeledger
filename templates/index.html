@@ -42,9 +42,14 @@
       <form id="invoice-form" class="card">
         <h2>New invoice</h2>
         <select name="client_id" id="invoice-client" required></select>
-        <input name="item_desc" placeholder="Line item description" required />
-        <input name="qty" type="number" step="0.1" value="1" />
-        <input name="unit_price" type="number" step="0.01" placeholder="Unit price" required />
+        <div id="line-items">
+          <div class="line-row">
+            <input name="item_desc" placeholder="Line item description" required />
+            <input name="qty" type="number" step="0.1" value="1" />
+            <input name="unit_price" type="number" step="0.01" placeholder="Unit price" required />
+          </div>
+        </div>
+        <button type="button" id="add-line" class="ghost">+ Add line</button>
         <select name="status">
           <option value="draft">draft</option>
           <option value="sent">sent</option>
