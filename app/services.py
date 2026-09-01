@@ -47,6 +47,18 @@ def dashboard_stats(db: Session) -> dict:
     paid = sum(inv.total for inv in invoices if inv.status == "paid")
     outstanding = sum(inv.total for inv in invoices if inv.status in ("sent", "overdue", "draft"))
     spent = sum(e.amount for e in expenses)
+    by_currency: dict = {}
+    for inv in invoices:
+        cur = inv.currency or "USD"
+        slot = by_currency.setdefault(
+            cur, {"billed": 0.0, "paid": 0.0, "outstanding": 0.0, "count": 0}
+        )
+        slot["billed"] = round(slot["billed"] + inv.total, 2)
+        slot["count"] += 1
+        if inv.status == "paid":
+            slot["paid"] = round(slot["paid"] + inv.total, 2)
+        if inv.status in ("sent", "overdue", "draft"):
+            slot["outstanding"] = round(slot["outstanding"] + inv.total, 2)
     return {
         "clients": db.query(models.Client).count(),
         "invoices": len(invoices),
@@ -56,5 +68,6 @@ def dashboard_stats(db: Session) -> dict:
         "outstanding": round(outstanding, 2),
         "expenses": round(spent, 2),
         "net": round(paid - spent, 2),
+        "by_currency": by_currency,
         "author": "Mourad.Soltani",
     }

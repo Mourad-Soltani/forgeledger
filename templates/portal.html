@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Client portal — ForgeLedger · Mourad.Soltani</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .portal { max-width: 720px; margin: 2rem auto; padding: 0 1rem 3rem; }
+    .portal h1 { margin-bottom: 0.2rem; }
+  </style>
+</head>
+<body>
+  <main class="portal">
+    <p class="eyebrow" id="studio">ForgeLedger</p>
+    <h1 id="title">Client portal</h1>
+    <p class="sub" id="sub">Loading…</p>
+    <div id="list" class="list"></div>
+    <footer id="foot">Mourad.Soltani</footer>
+  </main>
+  <script>
+    const token = location.pathname.split("/").pop();
+    function money(n, c) {
+      try { return Number(n||0).toLocaleString(undefined,{style:"currency",currency:c||"USD"}); }
+      catch { return n + " " + c; }
+    }
+    fetch("/api/portal/" + token).then(r => {
+      if (!r.ok) throw new Error("Invalid or expired link");
+      return r.json();
+    }).then(data => {
+      document.getElementById("studio").textContent = (data.brand && data.brand.studio_name) || "ForgeLedger";
+      document.getElementById("title").textContent = data.client.name;
+      document.getElementById("sub").textContent = (data.client.company || "Client") + " · invoices";
+      document.getElementById("foot").textContent = (data.brand && data.brand.footer) || "Mourad.Soltani";
+      document.getElementById("list").innerHTML = (data.invoices || []).map(i => `
+        <article class="item">
+          <div class="row"><h3>${i.number}</h3><span class="status">${i.status}</span></div>
+          <p>${money(i.total, i.currency)} · ${i.issue_date || ""}</p>
+          <a class="btn-link" href="${i.pdf}" target="_blank" rel="noopener">Download PDF</a>
+        </article>`).join("") || "<p class='sub'>No invoices yet.</p>";
+    }).catch(err => {
+      document.getElementById("title").textContent = "Link unavailable";
+      document.getElementById("sub").textContent = err.message;
+    });
+  </script>
+</body>
+</html>

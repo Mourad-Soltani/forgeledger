@@ -181,3 +181,37 @@ def test_email_invoice_demo(client):
     assert match["status"] == "sent"
     cur = client.get("/api/currencies").json()
     assert "EUR" in cur["currencies"]
+
+
+
+def test_portal_and_currency_stats(client):
+    c = client.post(
+        "/api/clients",
+        json={"name": "Portal Co", "email": "c@portal.test"},
+    ).json()
+    client.post(
+        "/api/invoices",
+        json={
+            "client_id": c["id"],
+            "status": "sent",
+            "currency": "GBP",
+            "items": [{"description": "UK work", "qty": 1, "unit_price": 500}],
+        },
+    )
+    stats = client.get("/api/stats").json()
+    assert "by_currency" in stats
+    assert "GBP" in stats["by_currency"]
+    assert stats["by_currency"]["GBP"]["billed"] == 500
+    link = client.post(f"/api/clients/{c['id']}/portal-link").json()
+    assert link["url"].endswith(link["token"])
+    assert link["author"] == "Mourad.Soltani"
+    portal = client.get(f"/api/portal/{link['token']}").json()
+    assert portal["client"]["name"] == "Portal Co"
+    assert len(portal["invoices"]) == 1
+    page = client.get(f"/portal/{link['token']}")
+    assert page.status_code == 200
+    assert "portal" in page.text.lower() or "ForgeLedger" in page.text
+    mail = client.post(
+        f"/api/invoices/{portal['invoices'][0]['id']}/email"
+    ).json()
+    assert mail.get("pdf_attached") is True or mail.get("pdf_bytes", 0) > 0

@@ -24,14 +24,21 @@ function money(n, currency = "USD") {
 
 async function refreshStats() {
   const s = await api("/api/stats");
-  $("#stats").innerHTML = [
+  const base = [
     ["Clients", s.clients],
     ["Invoices", s.invoices],
     ["Billed", money(s.billed)],
     ["Paid", money(s.paid)],
     ["Outstanding", money(s.outstanding)],
     ["Net", money(s.net)],
-  ]
+  ];
+  const by = s.by_currency || {};
+  Object.keys(by).sort().forEach((cur) => {
+    const row = by[cur];
+    base.push([`${cur} paid`, money(row.paid, cur)]);
+    base.push([`${cur} open`, money(row.outstanding, cur)]);
+  });
+  $("#stats").innerHTML = base
     .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`)
     .join("");
 }
@@ -42,7 +49,8 @@ async function refreshClients() {
     .map(
       (c) => `<article class="item"><div class="row"><h3>${c.name}</h3><span>#${c.id}</span></div>
       <p>${c.company || "Independent"} · ${c.email || "no email"}</p>
-      <p>${c.notes || ""}</p></article>`
+      <p>${c.notes || ""}</p>
+      <div class="row actions"><button data-portal="${c.id}">Portal link</button></div></article>`
     )
     .join("");
   const sel = $("#invoice-client");
@@ -251,6 +259,13 @@ $("#invoice-list").addEventListener("click", async (e) => {
       alert(String(err.message || err));
     }
   }
+});
+
+document.getElementById("client-list")?.addEventListener("click", async (e) => {
+  const id = e.target.dataset.portal;
+  if (!id) return;
+  const res = await api(`/api/clients/${id}/portal-link`, { method: "POST" });
+  prompt("Client portal link (copy):", res.url);
 });
 
 boot().catch((err) => console.error(err));

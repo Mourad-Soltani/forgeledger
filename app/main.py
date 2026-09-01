@@ -20,6 +20,7 @@ from .stripe_checkout import (
 )
 from .license import validate_license, active_license, issue_key
 from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured, SUPPORTED
+from .portal import mint_portal_token, verify_portal_token
 import os
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -218,9 +219,9 @@ def email_invoice(invoice_id: int, db: Session = Depends(get_db)):
         raise HTTPException(400, "Client missing")
     base = os.environ.get("FORGELEDGER_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
     msg = build_invoice_email(invoice=inv, client=client, brand=get_brand(), public_url=base)
-    result = send_invoice_email(msg)
+    pdf_bytes = build_invoice_pdf(inv, client, get_brand())
+    result = send_invoice_email(msg, pdf_bytes=pdf_bytes)
     if result.get("mode") == "error" and not result.get("sent"):
-        # still return 200 for missing email so UI can show message; 400 only for hard fail without preview
         if result.get("error") == "Client has no email address":
             raise HTTPException(400, result["error"])
     if inv.status == "draft":
@@ -321,6 +322,60 @@ def create_proposal(payload: schemas.ProposalIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return row
+
+
+
+@app.post("/api/clients/{client_id}/portal-link")
+def create_portal_link(client_id: int, db: Session = Depends(get_db)):
+    client = db.get(models.Client, client_id)
+    if not client:
+        raise HTTPException(404, "Client not found")
+    token = mint_portal_token(client_id)
+    base = os.environ.get("FORGELEDGER_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
+    return {
+        "client_id": client_id,
+        "token": token,
+        "url": f"{base}/portal/{token}",
+        "author": "Mourad.Soltani",
+    }
+
+
+@app.get("/api/portal/{token}")
+def portal_data(token: str, db: Session = Depends(get_db)):
+    client_id = verify_portal_token(token)
+    if client_id is None:
+        raise HTTPException(401, "Invalid or expired portal link")
+    client = db.get(models.Client, client_id)
+    if not client:
+        raise HTTPException(404, "Client not found")
+    invs = (
+        db.query(models.Invoice)
+        .filter(models.Invoice.client_id == client_id)
+        .order_by(models.Invoice.id.desc())
+        .all()
+    )
+    return {
+        "client": {"id": client.id, "name": client.name, "company": client.company, "email": client.email},
+        "invoices": [
+            {
+                "id": i.id,
+                "number": i.number,
+                "status": i.status,
+                "currency": i.currency,
+                "total": i.total,
+                "issue_date": str(i.issue_date) if i.issue_date else None,
+                "pdf": f"/api/invoices/{i.id}/pdf",
+            }
+            for i in invs
+        ],
+        "brand": get_brand(),
+        "author": "Mourad.Soltani",
+    }
+
+
+@app.get("/portal/{token}", response_class=HTMLResponse)
+def portal_page(token: str):
+    return FileResponse(ROOT / "templates" / "portal.html")
 
 
 @app.get("/", response_class=HTMLResponse)

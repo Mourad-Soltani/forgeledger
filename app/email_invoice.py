@@ -51,10 +51,11 @@ def build_invoice_email(
         "subject": subject,
         "body": body,
         "from": os.environ.get("SMTP_FROM", "noreply@forgeledger.local"),
+        "filename": f"{invoice.number}.pdf",
     }
 
 
-def send_invoice_email(msg: dict) -> dict:
+def send_invoice_email(msg: dict, pdf_bytes: Optional[bytes] = None) -> dict:
     """Send via SMTP when configured; otherwise return demo payload."""
     if not msg.get("to"):
         return {
@@ -69,6 +70,8 @@ def send_invoice_email(msg: dict) -> dict:
             "mode": "demo",
             "message": "SMTP not configured — preview only. Set SMTP_HOST and SMTP_FROM.",
             "preview": msg,
+            "pdf_attached": bool(pdf_bytes),
+            "pdf_bytes": len(pdf_bytes or b""),
             "author": "Mourad.Soltani",
         }
     email = EmailMessage()
@@ -76,6 +79,13 @@ def send_invoice_email(msg: dict) -> dict:
     email["From"] = msg["from"]
     email["To"] = msg["to"]
     email.set_content(msg["body"])
+    if pdf_bytes:
+        email.add_attachment(
+            pdf_bytes,
+            maintype="application",
+            subtype="pdf",
+            filename=msg.get("filename") or "invoice.pdf",
+        )
     host = os.environ["SMTP_HOST"]
     port = int(os.environ.get("SMTP_PORT", "587"))
     user = os.environ.get("SMTP_USER")
@@ -93,6 +103,7 @@ def send_invoice_email(msg: dict) -> dict:
             "mode": "live",
             "to": msg["to"],
             "subject": msg["subject"],
+            "pdf_attached": bool(pdf_bytes),
             "author": "Mourad.Soltani",
         }
     except Exception as exc:
