@@ -152,3 +152,32 @@ def test_admin_issue_license(client, monkeypatch):
     # issued key validates
     check = client.post("/api/license/validate", json={"key": body["key"]}).json()
     assert check["valid"] is True
+
+
+
+def test_email_invoice_demo(client):
+    c = client.post(
+        "/api/clients",
+        json={"name": "Mail Co", "email": "finance@mail.test"},
+    ).json()
+    inv = client.post(
+        "/api/invoices",
+        json={
+            "client_id": c["id"],
+            "status": "draft",
+            "currency": "EUR",
+            "items": [{"description": "EU sprint", "qty": 1, "unit_price": 1200}],
+        },
+    ).json()
+    assert inv["currency"] == "EUR"
+    assert inv["total"] == 1200
+    res = client.post(f"/api/invoices/{inv['id']}/email").json()
+    assert res["mode"] == "demo"
+    assert res["preview"]["to"] == "finance@mail.test"
+    assert "FL-" in res["preview"]["subject"] or "Invoice" in res["preview"]["subject"]
+    assert res["author"] == "Mourad.Soltani"
+    listed = client.get("/api/invoices").json()
+    match = next(x for x in listed if x["id"] == inv["id"])
+    assert match["status"] == "sent"
+    cur = client.get("/api/currencies").json()
+    assert "EUR" in cur["currencies"]

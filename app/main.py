@@ -19,6 +19,7 @@ from .stripe_checkout import (
     invoice_id_from_event,
 )
 from .license import validate_license, active_license, issue_key
+from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured, SUPPORTED
 import os
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -54,6 +55,7 @@ def health(db: Session = Depends(get_db)):
             "api": True,
             "pdf": True,
             "stripe": stripe_configured(),
+            "smtp": smtp_configured(),
         },
     }
 
@@ -204,6 +206,34 @@ def invoice_checkout(invoice_id: int, db: Session = Depends(get_db)):
     if session.get("mode") == "error":
         raise HTTPException(502, session.get("error") or "Checkout failed")
     return session
+
+
+@app.post("/api/invoices/{invoice_id}/email")
+def email_invoice(invoice_id: int, db: Session = Depends(get_db)):
+    inv = db.get(models.Invoice, invoice_id)
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    client = db.get(models.Client, inv.client_id)
+    if not client:
+        raise HTTPException(400, "Client missing")
+    base = os.environ.get("FORGELEDGER_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
+    msg = build_invoice_email(invoice=inv, client=client, brand=get_brand(), public_url=base)
+    result = send_invoice_email(msg)
+    if result.get("mode") == "error" and not result.get("sent"):
+        # still return 200 for missing email so UI can show message; 400 only for hard fail without preview
+        if result.get("error") == "Client has no email address":
+            raise HTTPException(400, result["error"])
+    if inv.status == "draft":
+        inv.status = "sent"
+        db.commit()
+    result["invoice_id"] = inv.id
+    result["status"] = inv.status
+    return result
+
+
+@app.get("/api/currencies")
+def list_currencies():
+    return {"currencies": list(SUPPORTED), "author": "Mourad.Soltani"}
 
 
 @app.post("/api/stripe/webhook")

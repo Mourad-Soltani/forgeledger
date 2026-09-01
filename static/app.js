@@ -11,8 +11,15 @@ async function api(path, opts) {
   return res.json();
 }
 
-function money(n) {
-  return Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
+function money(n, currency = "USD") {
+  try {
+    return Number(n || 0).toLocaleString(undefined, {
+      style: "currency",
+      currency: currency || "USD",
+    });
+  } catch (_) {
+    return `${Number(n || 0).toFixed(2)} ${currency || "USD"}`;
+  }
 }
 
 async function refreshStats() {
@@ -47,12 +54,13 @@ async function refreshInvoices() {
   $("#invoice-list").innerHTML = rows
     .map(
       (i) => `<article class="item"><div class="row"><h3>${i.number}</h3><span class="status">${i.status}</span></div>
-      <p>${money(i.total)} ${i.currency} · client #${i.client_id}</p>
+      <p>${money(i.total, i.currency)} · client #${i.client_id}</p>
       <p>${(i.items || []).map((x) => x.description).join(", ")}</p>
       <div class="row actions">
         <button data-pay="${i.id}">Mark paid</button>
         <a class="btn-link" href="/api/invoices/${i.id}/pdf" target="_blank" rel="noopener">PDF</a>
         <button data-checkout="${i.id}">Checkout</button>
+        <button data-email="${i.id}">Email</button>
       </div></article>`
     )
     .join("");
@@ -155,6 +163,7 @@ $("#invoice-form").addEventListener("submit", async (e) => {
     body: JSON.stringify({
       client_id: Number(f.get("client_id")),
       status: f.get("status"),
+      currency: f.get("currency") || "USD",
       items,
     }),
   });
@@ -223,6 +232,23 @@ $("#invoice-list").addEventListener("click", async (e) => {
       }
     } else {
       alert(session.error || "Checkout unavailable");
+    }
+    return;
+  }
+  const emailId = e.target.dataset.email;
+  if (emailId) {
+    try {
+      const res = await api(`/api/invoices/${emailId}/email`, { method: "POST" });
+      if (res.mode === "demo") {
+        alert(`Demo email preview to ${res.preview?.to || "(no email)"}:\n\n${res.preview?.subject || ""}`);
+      } else if (res.sent) {
+        alert(`Invoice emailed to ${res.to}`);
+      } else {
+        alert(res.error || "Email failed");
+      }
+      await boot();
+    } catch (err) {
+      alert(String(err.message || err));
     }
   }
 });

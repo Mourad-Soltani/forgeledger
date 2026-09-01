@@ -1,23 +1,21 @@
 # Dev-team context snapshot — Mourad.Soltani
 
 ## Product
-ForgeLedger v1.3.0
+ForgeLedger v1.4.0
 
 ## Done
-- Multi-line invoices, PDF, Stripe checkout + webhook
-- White-label + license gate + admin key issuance
-- Success/cancel payment page
-- Dockerfile + docker-compose + DEPLOY.md
-- 1:1 outreach sent to Atekatu, Alkalyne, Rogue
+- Multi-line invoices, multi-currency (USD EUR GBP CAD AUD CHF TND MAD)
+- PDF export, Stripe checkout + webhook, success page
+- Invoice email send (SMTP live / demo preview)
+- White-label + license admin issue
+- Docker + compose
+- 1:1 outreach sent
 - GitHub: https://github.com/Mourad-Soltani/forgeledger
 
 ## Next (optional)
-- Email invoice send
-- Multi-currency UI polish
-- Soft delete / archive
-
-## Health
-FORGELEDGER_DB=/tmp/t.db pytest -q
+- Attach PDF to SMTP email
+- Per-currency dashboard totals
+- Client portal magic link
 
 ## Signature
 Mourad.Soltani
