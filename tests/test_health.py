@@ -279,3 +279,43 @@ def test_recurring_reminders_csv(client):
     assert "number" in csv_inv.text
     csv_cli = client.get("/api/export/clients.csv")
     assert "Retainer Co" in csv_cli.text
+
+
+
+def test_api_keys_auth(client, monkeypatch):
+    # open mode
+    me = client.get("/api/me").json()
+    assert me["role"] == "owner"
+    assert me["auth"] is False
+    # enable auth
+    monkeypatch.setenv("FORGELEDGER_REQUIRE_AUTH", "1")
+    monkeypatch.setenv("FORGELEDGER_OWNER_API_KEY", "fl_owner_testkey_1234567890")
+    from importlib import reload
+    import app.auth as auth
+    import app.database as database
+    import app.main as main
+    reload(auth)
+    reload(database)
+    database.init_db()
+    db = database.SessionLocal()
+    try:
+        auth.bootstrap_owner_key(db)
+    finally:
+        db.close()
+    reload(main)
+    from fastapi.testclient import TestClient
+    with TestClient(main.app) as c2:
+        denied = c2.get("/api/me")
+        assert denied.status_code == 401
+        ok = c2.get("/api/me", headers={"X-API-Key": "fl_owner_testkey_1234567890"})
+        assert ok.status_code == 200
+        assert ok.json()["role"] == "owner"
+        issued = c2.post(
+            "/api/keys",
+            headers={"X-API-Key": "fl_owner_testkey_1234567890"},
+            json={"name": "ops", "role": "member"},
+        )
+        assert issued.status_code == 201
+        body = issued.json()
+        assert body["key"].startswith("fl_member_")
+        assert body["author"] == "Mourad.Soltani"

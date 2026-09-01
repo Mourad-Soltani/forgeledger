@@ -21,6 +21,13 @@ from .stripe_checkout import (
 from .license import validate_license, active_license, issue_key
 from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured, SUPPORTED
 from .jobs import run_recurring, run_reminders
+from .auth import (
+    get_current_principal,
+    require_role,
+    auth_required,
+    bootstrap_owner_key,
+    create_api_key,
+)
 import csv
 import io
 from .portal import mint_portal_token, verify_portal_token
@@ -39,6 +46,14 @@ app = FastAPI(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        created = bootstrap_owner_key(db)
+        if created:
+            print(f"[ForgeLedger] Owner API key created (save it): {created}")
+    finally:
+        db.close()
 
 
 @app.get("/health", response_model=schemas.HealthOut)
@@ -60,6 +75,7 @@ def health(db: Session = Depends(get_db)):
             "pdf": True,
             "stripe": stripe_configured(),
             "smtp": smtp_configured(),
+            "auth_required": auth_required(),
         },
     }
 
@@ -522,6 +538,45 @@ def export_clients_csv(include_archived: bool = False, db: Session = Depends(get
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="forgeledger-clients.csv"'},
     )
+
+
+@app.get("/api/keys")
+def list_keys(db: Session = Depends(get_db), principal=Depends(require_role("owner"))):
+    rows = db.query(models.ApiKey).order_by(models.ApiKey.id.desc()).all()
+    return [
+        {"id": r.id, "name": r.name, "role": r.role, "active": r.active, "created_at": r.created_at}
+        for r in rows
+    ]
+
+
+@app.post("/api/keys", status_code=201)
+def issue_api_key(payload: dict, db: Session = Depends(get_db), principal=Depends(require_role("owner"))):
+    name = (payload or {}).get("name") or "member"
+    role = (payload or {}).get("role") or "member"
+    if role == "owner" and principal.get("role") != "owner":
+        raise HTTPException(403, "Only owner can mint owner keys")
+    return create_api_key(db, name=name, role=role)
+
+
+@app.post("/api/keys/{kid}/revoke")
+def revoke_key(kid: int, db: Session = Depends(get_db), principal=Depends(require_role("owner"))):
+    row = db.get(models.ApiKey, kid)
+    if not row:
+        raise HTTPException(404, "Key not found")
+    if row.role == "owner":
+        owners = db.query(models.ApiKey).filter(models.ApiKey.role == "owner", models.ApiKey.active.is_(True)).count()
+        if owners <= 1:
+            raise HTTPException(400, "Cannot revoke the last owner key")
+    row.active = False
+    db.commit()
+    return {"id": kid, "active": False, "author": "Mourad.Soltani"}
+
+
+@app.get("/api/me")
+def me(principal=Depends(get_current_principal)):
+    principal = dict(principal)
+    principal["author"] = "Mourad.Soltani"
+    return principal
 
 
 @app.get("/", response_class=HTMLResponse)

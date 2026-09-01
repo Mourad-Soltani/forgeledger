@@ -48,3 +48,21 @@ curl -X POST https://YOUR_HOST/api/admin/license/issue \
 Reminder emails include a signed client portal link (14-day TTL by default).
 
 — Mourad.Soltani
+
+
+## Multi-user API auth
+
+```bash
+export FORGELEDGER_REQUIRE_AUTH=1
+export FORGELEDGER_OWNER_API_KEY=fl_owner_your_secret
+```
+
+Then call APIs with `Authorization: Bearer <key>` or `X-API-Key: <key>`.
+
+- `GET /api/me`
+- `POST /api/keys` (owner) — issue member/readonly keys
+- `POST /api/keys/{id}/revoke`
+
+Default remains open local mode when `FORGELEDGER_REQUIRE_AUTH` is unset.
+
+— Mourad.Soltani

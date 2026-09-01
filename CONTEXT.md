@@ -1,19 +1,18 @@
 # Dev-team context snapshot — Mourad.Soltani
 
 ## Product
-ForgeLedger v1.7.0
+ForgeLedger v1.8.0
 
 ## Done
-- Recurring invoices + run job
-- Reminder digests (overdue / due in 3 days)
-- CSV export invoices & clients
-- Portal pay, soft archive, PDF email, Stripe, Docker
+- Full billing stack + portal pay + recurring + reminders + CSV
+- Multi-user API keys (owner/member/readonly)
+- Valuation memo, cron, Docker
 - 1:1 outreach sent
 
 ## Next (optional)
-- Cron scheduler wrapper
-- Attach portal link in reminder emails
-- Multi-user auth
+- UI login for auth mode
+- Webhook signing secrets UI
+- Stripe Customer Portal deep link
 
 ## Signature
 Mourad.Soltani

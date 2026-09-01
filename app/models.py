@@ -107,3 +107,15 @@ class RecurringInvoice(Base):
     active = Column(Boolean, default=True)
     last_invoice_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), default="member")
+    role = Column(String(20), default="member")  # owner, member, readonly
+    key_hash = Column(String(64), unique=True, nullable=False)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
