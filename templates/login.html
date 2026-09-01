@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in — ForgeLedger · Mourad.Soltani</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .login { max-width: 420px; margin: 4rem auto; padding: 1.5rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+    .login label { display: block; margin: 0.6rem 0 0.25rem; color: var(--muted); font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <main class="login">
+    <p class="eyebrow">Mourad.Soltani · ForgeLedger</p>
+    <h1>API key sign-in</h1>
+    <p class="sub">Required when FORGELEDGER_REQUIRE_AUTH=1. Key is stored only in this browser (localStorage).</p>
+    <label for="key">API key</label>
+    <input id="key" type="password" placeholder="fl_owner_… or fl_member_…" autocomplete="off" />
+    <button id="go" type="button" style="margin-top:0.8rem;width:100%">Enter console</button>
+    <p id="err" class="sub" style="color:var(--warn)"></p>
+  </main>
+  <script>
+    const keyEl = document.getElementById("key");
+    const existing = localStorage.getItem("fl_api_key");
+    if (existing) keyEl.value = existing;
+    document.getElementById("go").onclick = async () => {
+      const key = keyEl.value.trim();
+      if (!key) return;
+      localStorage.setItem("fl_api_key", key);
+      try {
+        const res = await fetch("/api/me", { headers: { "X-API-Key": key } });
+        if (!res.ok) throw new Error("Invalid key");
+        location.href = "/";
+      } catch (e) {
+        document.getElementById("err").textContent = e.message || "Auth failed";
+        localStorage.removeItem("fl_api_key");
+      }
+    };
+  </script>
+</body>
+</html>

@@ -119,3 +119,48 @@ def invoice_id_from_event(event) -> Optional[int]:
         return int(raw) if raw is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def create_billing_portal_session(
+    *,
+    customer_id: str,
+    return_url: str = "http://127.0.0.1:8080/",
+) -> dict:
+    """Stripe Customer Portal deep link (live only)."""
+    key = os.environ.get("STRIPE_SECRET_KEY")
+    if not key:
+        return {
+            "url": None,
+            "mode": "demo",
+            "message": "Set STRIPE_SECRET_KEY and a Stripe customer id to open Billing Portal.",
+            "author": "Mourad.Soltani",
+        }
+    try:
+        import stripe
+
+        stripe.api_key = key
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=return_url,
+        )
+        return {
+            "url": session.url,
+            "mode": "live",
+            "author": "Mourad.Soltani",
+        }
+    except Exception as exc:
+        return {
+            "url": None,
+            "mode": "error",
+            "error": str(exc),
+            "author": "Mourad.Soltani",
+        }
+
+
+def webhook_status() -> dict:
+    return {
+        "stripe_secret": bool(os.environ.get("STRIPE_SECRET_KEY")),
+        "webhook_secret": bool(os.environ.get("STRIPE_WEBHOOK_SECRET")),
+        "webhook_path": "/api/stripe/webhook",
+        "author": "Mourad.Soltani",
+    }

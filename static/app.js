@@ -2,9 +2,12 @@
 const $ = (s) => document.querySelector(s);
 
 async function api(path, opts) {
+  const headers = { "Content-Type": "application/json", ...(opts && opts.headers) };
+  const key = localStorage.getItem("fl_api_key");
+  if (key) headers["X-API-Key"] = key;
   const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
     ...opts,
+    headers,
   });
   if (res.status === 204) return null;
   if (!res.ok) throw new Error(await res.text());
@@ -118,6 +121,41 @@ async function refreshRecurring() {
   </article>`).join("") || "<p class='sub'>No schedules</p>";
 }
 
+async function refreshSettings() {
+  const box = document.getElementById("settings-box");
+  if (!box) return;
+  try {
+    const me = await api("/api/me");
+    const st = await api("/api/stripe/status");
+    box.innerHTML = `<p>Auth: <b>${me.auth ? me.role + " (" + (me.name||"") + ")" : "open local"}</b>
+      · <a href="/login">API key</a>
+      · <button type="button" id="logout-key" class="ghost">Clear key</button></p>
+      <p>Stripe secret: <b>${st.stripe_secret ? "yes" : "no"}</b>
+      · Webhook secret: <b>${st.webhook_secret ? "yes" : "no"}</b>
+      · Path: <code>${st.webhook_path}</code></p>
+      <form id="portal-form" class="line-row" style="grid-template-columns:1fr auto">
+        <input name="customer_id" placeholder="Stripe customer id (cus_…)" />
+        <button type="submit">Billing portal</button>
+      </form>`;
+    document.getElementById("logout-key")?.addEventListener("click", () => {
+      localStorage.removeItem("fl_api_key");
+      location.href = "/login";
+    });
+    document.getElementById("portal-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = new FormData(e.target).get("customer_id");
+      const res = await api("/api/stripe/billing-portal", {
+        method: "POST",
+        body: JSON.stringify({ customer_id: id }),
+      });
+      if (res.url) location.href = res.url;
+      else alert(res.message || res.error || "Portal unavailable (demo)");
+    });
+  } catch (err) {
+    box.innerHTML = `<p class="sub">Settings unavailable. <a href="/login">Sign in</a></p>`;
+  }
+}
+
 async function boot() {
   await Promise.all([
     applyBrand(),
@@ -127,6 +165,7 @@ async function boot() {
     refreshExpenses(),
     refreshProposals(),
     refreshRecurring(),
+    refreshSettings(),
   ]);
 }
 

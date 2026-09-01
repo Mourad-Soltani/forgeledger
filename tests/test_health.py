@@ -319,3 +319,17 @@ def test_api_keys_auth(client, monkeypatch):
         body = issued.json()
         assert body["key"].startswith("fl_member_")
         assert body["author"] == "Mourad.Soltani"
+
+
+
+def test_login_and_stripe_status(client):
+    page = client.get("/login")
+    assert page.status_code == 200
+    assert "API key" in page.text
+    st = client.get("/api/stripe/status").json()
+    assert "webhook_path" in st
+    assert st["author"] == "Mourad.Soltani"
+    portal = client.post("/api/stripe/billing-portal", json={"customer_id": "cus_demo"})
+    assert portal.status_code == 200
+    body = portal.json()
+    assert body["mode"] == "demo"

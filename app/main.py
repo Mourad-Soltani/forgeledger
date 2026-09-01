@@ -17,6 +17,8 @@ from .stripe_checkout import (
     stripe_configured,
     parse_webhook_event,
     invoice_id_from_event,
+    create_billing_portal_session,
+    webhook_status,
 )
 from .license import validate_license, active_license, issue_key
 from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured, SUPPORTED
@@ -282,6 +284,25 @@ def email_invoice(invoice_id: int, db: Session = Depends(get_db)):
 @app.get("/api/currencies")
 def list_currencies():
     return {"currencies": list(SUPPORTED), "author": "Mourad.Soltani"}
+
+
+@app.get("/api/stripe/status")
+def stripe_status(principal=Depends(get_current_principal)):
+    st = webhook_status()
+    st["configured"] = stripe_configured()
+    return st
+
+
+@app.post("/api/stripe/billing-portal")
+def stripe_billing_portal(payload: dict, principal=Depends(require_role("owner", "member"))):
+    customer_id = (payload or {}).get("customer_id") or ""
+    if not customer_id:
+        raise HTTPException(400, "customer_id required")
+    base = os.environ.get("FORGELEDGER_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
+    session = create_billing_portal_session(customer_id=customer_id, return_url=f"{base}/")
+    if session.get("mode") == "error":
+        raise HTTPException(502, session.get("error") or "Portal failed")
+    return session
 
 
 @app.post("/api/stripe/webhook")
@@ -582,6 +603,11 @@ def me(principal=Depends(get_current_principal)):
 @app.get("/", response_class=HTMLResponse)
 def home():
     return FileResponse(ROOT / "templates" / "index.html")
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page():
+    return FileResponse(ROOT / "templates" / "login.html")
 
 
 @app.get("/success", response_class=HTMLResponse)
