@@ -20,6 +20,9 @@ from .stripe_checkout import (
     create_billing_portal_session,
     webhook_status,
     create_founding_license_checkout,
+    product_from_event,
+    customer_email_from_event,
+    session_id_from_event,
 )
 from .license import validate_license, active_license, issue_key
 from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured, SUPPORTED
@@ -313,7 +316,30 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     parsed = parse_webhook_event(payload, sig)
     if not parsed.get("ok"):
         raise HTTPException(400, parsed.get("error") or "Webhook rejected")
-    inv_id = invoice_id_from_event(parsed.get("event"))
+    event = parsed.get("event")
+    product = product_from_event(event)
+    # Founding license purchase → issue key
+    if product == "founding_license":
+        email = customer_email_from_event(event) or ""
+        sid = session_id_from_event(event)
+        issued = issue_key(seed=(email or sid or "FOUNDER")[:8], tier="founder")
+        grant = models.LicenseGrant(
+            email=email,
+            key=issued["key"],
+            tier="founder",
+            stripe_session=sid or "",
+        )
+        db.add(grant)
+        db.commit()
+        return {
+            "received": True,
+            "action": "license_issued",
+            "key": issued["key"],
+            "email": email,
+            "mode": parsed.get("mode"),
+            "author": "Mourad.Soltani",
+        }
+    inv_id = invoice_id_from_event(event)
     if inv_id is None:
         return {"received": True, "action": "ignored", "author": "Mourad.Soltani"}
     inv = db.get(models.Invoice, inv_id)
@@ -337,6 +363,15 @@ def license_validate(payload: dict):
     result = validate_license(key)
     result["author"] = "Mourad.Soltani"
     return result
+
+
+@app.get("/api/license/grants")
+def list_license_grants(db: Session = Depends(get_db), principal=Depends(require_role("owner"))):
+    rows = db.query(models.LicenseGrant).order_by(models.LicenseGrant.id.desc()).all()
+    return [
+        {"id": r.id, "email": r.email, "key": r.key, "tier": r.tier, "stripe_session": r.stripe_session, "created_at": r.created_at}
+        for r in rows
+    ]
 
 
 @app.get("/api/license/status")

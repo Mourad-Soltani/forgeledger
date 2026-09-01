@@ -119,3 +119,15 @@ class ApiKey(Base):
     key_hash = Column(String(64), unique=True, nullable=False)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+
+class LicenseGrant(Base):
+    __tablename__ = "license_grants"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(200), default="")
+    key = Column(String(80), nullable=False)
+    tier = Column(String(40), default="founder")
+    stripe_session = Column(String(120), default="")
+    created_at = Column(DateTime, default=datetime.utcnow)

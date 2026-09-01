@@ -346,3 +346,24 @@ def test_founding_license_and_onboarding(client):
     assert res["url"]
     assert res["amount_cents"] == 149000
     assert res["author"] == "Mourad.Soltani"
+
+
+
+def test_founding_license_webhook_issues_key(client):
+    body = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_test_license_1",
+                "customer_email": "buyer@studio.test",
+                "metadata": {"product": "founding_license"},
+            }
+        },
+    }
+    res = client.post("/api/stripe/webhook", json=body)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["action"] == "license_issued"
+    assert data["key"].startswith("FL-")
+    assert data["email"] == "buyer@studio.test"
+    assert data["author"] == "Mourad.Soltani"

@@ -224,3 +224,38 @@ def create_founding_license_checkout(
         }
     except Exception as exc:
         return {"id": None, "url": None, "mode": "error", "error": str(exc), "author": "Mourad.Soltani"}
+
+
+def product_from_event(event) -> str | None:
+    if not event:
+        return None
+    if hasattr(event, "type"):
+        if event.type != "checkout.session.completed":
+            return None
+        meta = getattr(event.data.object, "metadata", None) or {}
+        if isinstance(meta, dict):
+            return meta.get("product")
+        return getattr(meta, "product", None)
+    if event.get("type") != "checkout.session.completed":
+        return None
+    meta = (event.get("data") or {}).get("object", {}).get("metadata") or {}
+    return meta.get("product")
+
+
+def customer_email_from_event(event) -> str:
+    if not event:
+        return ""
+    if hasattr(event, "type"):
+        obj = event.data.object if event.data else None
+        return (getattr(obj, "customer_email", None) or getattr(obj, "customer_details", None) or "") or ""
+    obj = (event.get("data") or {}).get("object") or {}
+    return obj.get("customer_email") or (obj.get("customer_details") or {}).get("email") or ""
+
+
+def session_id_from_event(event) -> str:
+    if not event:
+        return ""
+    if hasattr(event, "type"):
+        obj = event.data.object if event.data else None
+        return getattr(obj, "id", "") or ""
+    return ((event.get("data") or {}).get("object") or {}).get("id") or ""
