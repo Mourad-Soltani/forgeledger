@@ -1,0 +1,23 @@
+# ForgeLedger — Mourad.Soltani
+services:
+  forgeledger:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - FORGELEDGER_DB=/data/forgeledger.db
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - FORGELEDGER_LICENSE_KEY=${FORGELEDGER_LICENSE_KEY:-}
+      - FORGELEDGER_LICENSE_SECRET=${FORGELEDGER_LICENSE_SECRET:-}
+      - FORGELEDGER_ADMIN_TOKEN=${FORGELEDGER_ADMIN_TOKEN:-}
+      - FORGELEDGER_STUDIO_NAME=${FORGELEDGER_STUDIO_NAME:-ForgeLedger}
+      - FORGELEDGER_FOOTER=${FORGELEDGER_FOOTER:-}
+      - FORGELEDGER_HIDE_SIGNATURE=${FORGELEDGER_HIDE_SIGNATURE:-0}
+    volumes:
+      - forgeledger_data:/data
+    restart: unless-stopped
+
+volumes:
+  forgeledger_data:

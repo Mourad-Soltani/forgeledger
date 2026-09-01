@@ -18,7 +18,8 @@ from .stripe_checkout import (
     parse_webhook_event,
     invoice_id_from_event,
 )
-from .license import validate_license, active_license
+from .license import validate_license, active_license, issue_key
+import os
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -190,12 +191,15 @@ def invoice_checkout(invoice_id: int, db: Session = Depends(get_db)):
         raise HTTPException(400, "Invoice total must be positive")
     client = db.get(models.Client, inv.client_id)
     amount_cents = int(round(inv.total * 100))
+    base = os.environ.get("FORGELEDGER_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
     session = create_checkout_session(
         invoice_id=inv.id,
         invoice_number=inv.number,
         amount_cents=amount_cents,
         currency=inv.currency or "USD",
         customer_email=(client.email if client else None) or None,
+        success_url=f"{base}/success?paid=1",
+        cancel_url=f"{base}/success?canceled=1",
     )
     if session.get("mode") == "error":
         raise HTTPException(502, session.get("error") or "Checkout failed")
@@ -242,6 +246,21 @@ def license_status():
     return status
 
 
+@app.post("/api/admin/license/issue")
+def admin_issue_license(request: Request, payload: dict | None = None):
+    """Issue a founder white-label key. Requires FORGELEDGER_ADMIN_TOKEN header X-Admin-Token."""
+    expected = os.environ.get("FORGELEDGER_ADMIN_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(503, "Admin token not configured")
+    got = request.headers.get("x-admin-token") or ""
+    if got != expected:
+        raise HTTPException(401, "Unauthorized")
+    payload = payload or {}
+    seed = payload.get("seed")
+    tier = payload.get("tier") or "founder"
+    return issue_key(seed=seed, tier=tier)
+
+
 @app.get("/api/expenses", response_model=list[schemas.ExpenseOut])
 def list_expenses(db: Session = Depends(get_db)):
     return db.query(models.Expense).order_by(models.Expense.id.desc()).all()
@@ -277,6 +296,11 @@ def create_proposal(payload: schemas.ProposalIn, db: Session = Depends(get_db)):
 @app.get("/", response_class=HTMLResponse)
 def home():
     return FileResponse(ROOT / "templates" / "index.html")
+
+
+@app.get("/success", response_class=HTMLResponse)
+def payment_success():
+    return FileResponse(ROOT / "templates" / "success.html")
 
 
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")

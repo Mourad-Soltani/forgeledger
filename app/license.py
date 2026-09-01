@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import os
+import secrets
 from functools import lru_cache
 
 
@@ -24,7 +25,10 @@ def validate_license(key: str | None) -> dict:
     parts = key.strip().upper().split("-")
     if len(parts) == 4 and parts[0] == "FL":
         body = "-".join(parts[1:3])
-        expected = _digest(body).upper()[:8]
+        expected = _digest(body.replace("-", "")).upper()[:8]
+        # body for digest is 8 chars without dash: parts[1]+parts[2]
+        body_compact = (parts[1] + parts[2])[:8]
+        expected = _digest(body_compact).upper()[:8]
         if parts[3] == expected:
             return {"valid": True, "tier": "founder", "white_label": True, "author": "Mourad.Soltani"}
     return {"valid": False, "tier": "invalid", "white_label": False}
@@ -36,9 +40,21 @@ def active_license() -> dict:
     return validate_license(key)
 
 
+def issue_key(seed: str | None = None, tier: str = "founder") -> dict:
+    """Issue a signed FL-XXXX-XXXX-XXXXXXXX key. Admin-only in production."""
+    raw = (seed or secrets.token_hex(4)).upper().replace("-", "")[:8].ljust(8, "X")
+    mid = f"{raw[:4]}-{raw[4:8]}"
+    sig = _digest(raw).upper()[:8]
+    key = f"FL-{mid}-{sig}"
+    check = validate_license(key)
+    return {
+        "key": key,
+        "tier": tier if check.get("valid") else check.get("tier"),
+        "valid": check.get("valid"),
+        "white_label": check.get("white_label"),
+        "author": "Mourad.Soltani",
+    }
+
+
 def issue_demo_key(seed: str = "STUDIO") -> str:
-    """Dev helper — not for production issuance."""
-    body = seed.upper()[:8].ljust(8, "X")
-    mid = body[:4] + "-" + body[4:]
-    sig = _digest(body).upper()[:8]
-    return f"FL-{mid}-{sig}"
+    return issue_key(seed=seed)["key"]

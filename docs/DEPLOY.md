@@ -1,27 +1,38 @@
 # Deploy notes — Mourad.Soltani
 
-## Railway / Fly / any Docker host
+## Docker
 
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-ENV PORT=8080
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```bash
+docker compose up --build -d
+# health: curl localhost:8080/health
 ```
 
-## Required env for production
+Image uses non-root user, SQLite volume at `/data`, healthcheck on `/health`.
 
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET` (endpoint: `/api/stripe/webhook`)
-- `FORGELEDGER_LICENSE_KEY` (enables white-label)
-- Optional: `FORGELEDGER_STUDIO_NAME`, `FORGELEDGER_FOOTER`, `FORGELEDGER_HIDE_SIGNATURE=1`
+## Railway / Fly / any host
 
-## Webhook
+Use the included `Dockerfile`. Set:
 
-Point Stripe to `https://YOUR_HOST/api/stripe/webhook` for `checkout.session.completed`.
-Metadata must include `invoice_id`.
+| Env | Purpose |
+|---|---|
+| `STRIPE_SECRET_KEY` | Live Checkout |
+| `STRIPE_WEBHOOK_SECRET` | Webhook verify |
+| `FORGELEDGER_PUBLIC_URL` | e.g. `https://app.example.com` (success/cancel links) |
+| `FORGELEDGER_LICENSE_KEY` | Active white-label key |
+| `FORGELEDGER_LICENSE_SECRET` | HMAC secret for issued keys |
+| `FORGELEDGER_ADMIN_TOKEN` | Required to call `/api/admin/license/issue` |
+| `FORGELEDGER_STUDIO_NAME` / `FOOTER` / `HIDE_SIGNATURE` | Branding (licensed only) |
+
+Webhook URL: `https://YOUR_HOST/api/stripe/webhook`  
+Success page: `https://YOUR_HOST/success?paid=1`
+
+## Issue a license key
+
+```bash
+curl -X POST https://YOUR_HOST/api/admin/license/issue \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Token: $FORGELEDGER_ADMIN_TOKEN" \
+  -d '{"seed":"ACME2026","tier":"founder"}'
+```
 
 — Mourad.Soltani

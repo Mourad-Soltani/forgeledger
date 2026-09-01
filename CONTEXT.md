@@ -1,30 +1,23 @@
 # Dev-team context snapshot — Mourad.Soltani
 
 ## Product
-ForgeLedger v1.2.0 — freelance invoice / expense / proposal command center.
+ForgeLedger v1.3.0
 
 ## Done
-- Clients, invoices (multi-line), expenses, proposals
-- Health endpoint (db/api/pdf/stripe)
-- PDF invoice export
-- Stripe checkout (demo + live) + webhook auto-mark paid
-- White-label brand API with license-key gate
-- UI multi-line invoice editor
-- Sales kit + buyer outreach (3 individual emails SENT)
+- Multi-line invoices, PDF, Stripe checkout + webhook
+- White-label + license gate + admin key issuance
+- Success/cancel payment page
+- Dockerfile + docker-compose + DEPLOY.md
+- 1:1 outreach sent to Atekatu, Alkalyne, Rogue
 - GitHub: https://github.com/Mourad-Soltani/forgeledger
 
-## Outreach sent (1:1)
-1. contact@atekatu.agency
-2. hello@alkalyne.design
-3. hello@roguedigital.ai
-
-## Next
-- Hosted deploy Dockerfile polish
-- Stripe success page
-- License key issuance admin
+## Next (optional)
+- Email invoice send
+- Multi-currency UI polish
+- Soft delete / archive
 
 ## Health
-FORGELEDGER_DB=/tmp/forgeledger-test.db pytest -q
+FORGELEDGER_DB=/tmp/t.db pytest -q
 
 ## Signature
 Mourad.Soltani

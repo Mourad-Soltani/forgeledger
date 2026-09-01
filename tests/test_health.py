@@ -121,3 +121,34 @@ def test_license_validate(client):
     assert bad["author"] == "Mourad.Soltani"
     status = client.get("/api/license/status").json()
     assert "tier" in status
+
+
+
+def test_success_page(client):
+    res = client.get("/success?paid=1")
+    assert res.status_code == 200
+    assert "Payment" in res.text or "ForgeLedger" in res.text
+    assert "Mourad.Soltani" in res.text
+
+
+def test_admin_issue_license(client, monkeypatch):
+    monkeypatch.setenv("FORGELEDGER_ADMIN_TOKEN", "test-admin-token")
+    # clear cached license
+    from importlib import reload
+    import app.license as lic
+    reload(lic)
+    denied = client.post("/api/admin/license/issue", json={"seed": "DEMO0001"})
+    assert denied.status_code == 401
+    ok = client.post(
+        "/api/admin/license/issue",
+        json={"seed": "DEMO0001"},
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
+    assert ok.status_code == 200
+    body = ok.json()
+    assert body["valid"] is True
+    assert body["key"].startswith("FL-")
+    assert body["author"] == "Mourad.Soltani"
+    # issued key validates
+    check = client.post("/api/license/validate", json={"key": body["key"]}).json()
+    assert check["valid"] is True

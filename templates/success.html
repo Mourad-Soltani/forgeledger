@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Payment result — ForgeLedger · Mourad.Soltani</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .result { max-width: 520px; margin: 4rem auto; padding: 2rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+    .result h1 { margin-top: 0; }
+    .ok { color: var(--good); }
+    .bad { color: var(--warn); }
+    a.back { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main class="result">
+    <p class="eyebrow">Mourad.Soltani · ForgeLedger</p>
+    <h1 id="title">Processing…</h1>
+    <p id="detail"></p>
+    <p><a class="back" href="/">← Back to console</a></p>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const title = document.getElementById("title");
+    const detail = document.getElementById("detail");
+    if (params.get("canceled") === "1") {
+      title.textContent = "Checkout canceled";
+      title.className = "bad";
+      detail.textContent = "No charge was made. You can reopen checkout from the invoice list.";
+    } else if (params.get("paid") === "1") {
+      title.textContent = "Payment received";
+      title.className = "ok";
+      const sid = params.get("session_id") || "";
+      detail.textContent = sid
+        ? `Thank you. Session ${sid}. Invoice will show as paid once the webhook lands (or demo mode marks it immediately).`
+        : "Thank you. Your invoice will update to paid shortly.";
+    } else {
+      title.textContent = "ForgeLedger";
+      detail.textContent = "Return to the console to manage invoices.";
+    }
+  </script>
+</body>
+</html>
