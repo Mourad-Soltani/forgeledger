@@ -87,6 +87,19 @@ button[type=submit] {
 .row { display: flex; justify-content: space-between; gap: 0.6rem; }
 .status { color: var(--warn); }
 .check { font-size: 0.9rem; color: var(--muted); }
+.actions { margin-top: 0.5rem; gap: 0.45rem; flex-wrap: wrap; }
+.actions button, .btn-link {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0e1426;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+}
+.actions button:hover, .btn-link:hover { border-color: var(--accent); color: var(--accent); }
 footer {
   padding: 1.2rem 2.2rem 2rem;
   color: var(--muted);

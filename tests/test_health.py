@@ -64,3 +64,26 @@ def test_home_renders(client):
     assert res.status_code == 200
     assert "ForgeLedger" in res.text
     assert "Mourad.Soltani" in res.text
+
+
+def test_pdf_and_checkout(client):
+    c = client.post("/api/clients", json={"name": "PDF Co", "email": "bill@pdf.test"}).json()
+    inv = client.post(
+        "/api/invoices",
+        json={
+            "client_id": c["id"],
+            "status": "sent",
+            "items": [{"description": "Design sprint", "qty": 1, "unit_price": 2500}],
+        },
+    ).json()
+    pdf = client.get(f"/api/invoices/{inv['id']}/pdf")
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"].startswith("application/pdf")
+    assert pdf.content[:4] == b"%PDF"
+    checkout = client.post(f"/api/invoices/{inv['id']}/checkout").json()
+    assert checkout["mode"] == "demo"
+    assert checkout["url"]
+    assert checkout["author"] == "Mourad.Soltani"
+    brand = client.get("/api/brand").json()
+    assert brand["author"] == "Mourad.Soltani"
+    assert "ForgeLedger" in brand["footer"]

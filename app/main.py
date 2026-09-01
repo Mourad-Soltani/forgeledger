@@ -3,17 +3,18 @@
 from datetime import date
 from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from . import models, schemas, services
-from .database import get_db, init_db, engine
+from .database import get_db, init_db
 from . import __version__, __author__
+from .branding import get_brand
+from .pdf_export import build_invoice_pdf
+from .stripe_checkout import create_checkout_session, stripe_configured
 
 ROOT = Path(__file__).resolve().parent.parent
-templates = Jinja2Templates(directory=str(ROOT / "templates"))
 
 app = FastAPI(
     title="ForgeLedger",
@@ -41,8 +42,18 @@ def health(db: Session = Depends(get_db)):
         "product": "ForgeLedger",
         "author": __author__,
         "version": __version__,
-        "checks": {"database": db_ok, "api": True},
+        "checks": {
+            "database": db_ok,
+            "api": True,
+            "pdf": True,
+            "stripe": stripe_configured(),
+        },
     }
+
+
+@app.get("/api/brand")
+def brand_config():
+    return get_brand()
 
 
 @app.get("/api/stats")
@@ -145,6 +156,44 @@ def set_status(invoice_id: int, status: str, db: Session = Depends(get_db)):
     inv.status = status
     db.commit()
     return {"id": inv.id, "status": inv.status, "author": "Mourad.Soltani"}
+
+
+@app.get("/api/invoices/{invoice_id}/pdf")
+def invoice_pdf(invoice_id: int, db: Session = Depends(get_db)):
+    inv = db.get(models.Invoice, invoice_id)
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    client = db.get(models.Client, inv.client_id)
+    if not client:
+        raise HTTPException(400, "Client missing")
+    pdf_bytes = build_invoice_pdf(inv, client, get_brand())
+    filename = f"{inv.number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/api/invoices/{invoice_id}/checkout")
+def invoice_checkout(invoice_id: int, db: Session = Depends(get_db)):
+    inv = db.get(models.Invoice, invoice_id)
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    if inv.total <= 0:
+        raise HTTPException(400, "Invoice total must be positive")
+    client = db.get(models.Client, inv.client_id)
+    amount_cents = int(round(inv.total * 100))
+    session = create_checkout_session(
+        invoice_id=inv.id,
+        invoice_number=inv.number,
+        amount_cents=amount_cents,
+        currency=inv.currency or "USD",
+        customer_email=(client.email if client else None) or None,
+    )
+    if session.get("mode") == "error":
+        raise HTTPException(502, session.get("error") or "Checkout failed")
+    return session
 
 
 @app.get("/api/expenses", response_model=list[schemas.ExpenseOut])

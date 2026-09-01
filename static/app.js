@@ -49,9 +49,23 @@ async function refreshInvoices() {
       (i) => `<article class="item"><div class="row"><h3>${i.number}</h3><span class="status">${i.status}</span></div>
       <p>${money(i.total)} ${i.currency} · client #${i.client_id}</p>
       <p>${(i.items || []).map((x) => x.description).join(", ")}</p>
-      <button data-pay="${i.id}">Mark paid</button></article>`
+      <div class="row actions">
+        <button data-pay="${i.id}">Mark paid</button>
+        <a class="btn-link" href="/api/invoices/${i.id}/pdf" target="_blank" rel="noopener">PDF</a>
+        <button data-checkout="${i.id}">Checkout</button>
+      </div></article>`
     )
     .join("");
+}
+
+async function applyBrand() {
+  try {
+    const b = await api("/api/brand");
+    const foot = document.querySelector("footer");
+    if (foot) foot.innerHTML = b.footer || foot.innerHTML;
+    const badge = document.querySelector(".badge");
+    if (badge) badge.textContent = `v1.1 · ${b.studio_name || "signed"}`;
+  } catch (_) {}
 }
 
 async function refreshExpenses() {
@@ -75,7 +89,14 @@ async function refreshProposals() {
 }
 
 async function boot() {
-  await Promise.all([refreshStats(), refreshClients(), refreshInvoices(), refreshExpenses(), refreshProposals()]);
+  await Promise.all([
+    applyBrand(),
+    refreshStats(),
+    refreshClients(),
+    refreshInvoices(),
+    refreshExpenses(),
+    refreshProposals(),
+  ]);
 }
 
 document.querySelectorAll(".tabs button").forEach((btn) => {
@@ -155,10 +176,27 @@ $("#proposal-form").addEventListener("submit", async (e) => {
 });
 
 $("#invoice-list").addEventListener("click", async (e) => {
-  const id = e.target.dataset.pay;
-  if (!id) return;
-  await api(`/api/invoices/${id}/status?status=paid`, { method: "PATCH" });
-  await boot();
+  const payId = e.target.dataset.pay;
+  if (payId) {
+    await api(`/api/invoices/${payId}/status?status=paid`, { method: "PATCH" });
+    await boot();
+    return;
+  }
+  const checkoutId = e.target.dataset.checkout;
+  if (checkoutId) {
+    const session = await api(`/api/invoices/${checkoutId}/checkout`, { method: "POST" });
+    if (session.url) {
+      if (session.mode === "demo") {
+        alert(`Demo checkout ready (${session.id}). Marking invoice paid.`);
+        await api(`/api/invoices/${checkoutId}/status?status=paid`, { method: "PATCH" });
+        await boot();
+      } else {
+        window.location.href = session.url;
+      }
+    } else {
+      alert(session.error || "Checkout unavailable");
+    }
+  }
 });
 
 boot().catch((err) => console.error(err));
