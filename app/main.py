@@ -72,8 +72,11 @@ def stats(db: Session = Depends(get_db)):
 
 
 @app.get("/api/clients", response_model=list[schemas.ClientOut])
-def list_clients(db: Session = Depends(get_db)):
-    return db.query(models.Client).order_by(models.Client.id.desc()).all()
+def list_clients(include_archived: bool = False, db: Session = Depends(get_db)):
+    q = db.query(models.Client)
+    if not include_archived:
+        q = q.filter(models.Client.archived.is_(False))
+    return q.order_by(models.Client.id.desc()).all()
 
 
 @app.post("/api/clients", response_model=schemas.ClientOut, status_code=201)
@@ -94,9 +97,32 @@ def delete_client(client_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+@app.post("/api/clients/{client_id}/archive")
+def archive_client(client_id: int, db: Session = Depends(get_db)):
+    row = db.get(models.Client, client_id)
+    if not row:
+        raise HTTPException(404, "Client not found")
+    row.archived = True
+    db.commit()
+    return {"id": client_id, "archived": True, "author": "Mourad.Soltani"}
+
+
+@app.post("/api/invoices/{invoice_id}/archive")
+def archive_invoice(invoice_id: int, db: Session = Depends(get_db)):
+    row = db.get(models.Invoice, invoice_id)
+    if not row:
+        raise HTTPException(404, "Invoice not found")
+    row.archived = True
+    db.commit()
+    return {"id": invoice_id, "archived": True, "author": "Mourad.Soltani"}
+
+
 @app.get("/api/invoices", response_model=list[schemas.InvoiceOut])
-def list_invoices(db: Session = Depends(get_db)):
-    rows = db.query(models.Invoice).order_by(models.Invoice.id.desc()).all()
+def list_invoices(include_archived: bool = False, db: Session = Depends(get_db)):
+    q = db.query(models.Invoice)
+    if not include_archived:
+        q = q.filter(models.Invoice.archived.is_(False))
+    rows = q.order_by(models.Invoice.id.desc()).all()
     return [
         schemas.InvoiceOut(
             id=r.id,
@@ -108,6 +134,7 @@ def list_invoices(db: Session = Depends(get_db)):
             currency=r.currency,
             notes=r.notes,
             total=r.total,
+            archived=bool(getattr(r, "archived", False)),
             items=r.items,
         )
         for r in rows
@@ -151,6 +178,7 @@ def create_invoice(payload: schemas.InvoiceIn, db: Session = Depends(get_db)):
         currency=inv.currency,
         notes=inv.notes,
         total=inv.total,
+        archived=bool(getattr(inv, "archived", False)),
         items=inv.items,
     )
 
@@ -351,6 +379,7 @@ def portal_data(token: str, db: Session = Depends(get_db)):
     invs = (
         db.query(models.Invoice)
         .filter(models.Invoice.client_id == client_id)
+        .filter(models.Invoice.archived.is_(False))
         .order_by(models.Invoice.id.desc())
         .all()
     )
@@ -365,12 +394,46 @@ def portal_data(token: str, db: Session = Depends(get_db)):
                 "total": i.total,
                 "issue_date": str(i.issue_date) if i.issue_date else None,
                 "pdf": f"/api/invoices/{i.id}/pdf",
+                "payable": i.status != "paid" and i.total > 0,
             }
             for i in invs
         ],
         "brand": get_brand(),
         "author": "Mourad.Soltani",
     }
+
+
+@app.post("/api/portal/{token}/invoices/{invoice_id}/checkout")
+def portal_checkout(token: str, invoice_id: int, db: Session = Depends(get_db)):
+    client_id = verify_portal_token(token)
+    if client_id is None:
+        raise HTTPException(401, "Invalid or expired portal link")
+    inv = db.get(models.Invoice, invoice_id)
+    if not inv or inv.client_id != client_id or getattr(inv, "archived", False):
+        raise HTTPException(404, "Invoice not found")
+    if inv.total <= 0:
+        raise HTTPException(400, "Invoice total must be positive")
+    if inv.status == "paid":
+        raise HTTPException(400, "Already paid")
+    client = db.get(models.Client, client_id)
+    amount_cents = int(round(inv.total * 100))
+    base = os.environ.get("FORGELEDGER_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
+    session = create_checkout_session(
+        invoice_id=inv.id,
+        invoice_number=inv.number,
+        amount_cents=amount_cents,
+        currency=inv.currency or "USD",
+        customer_email=(client.email if client else None) or None,
+        success_url=f"{base}/success?paid=1",
+        cancel_url=f"{base}/portal/{token}",
+    )
+    if session.get("mode") == "error":
+        raise HTTPException(502, session.get("error") or "Checkout failed")
+    if session.get("mode") == "demo":
+        inv.status = "paid"
+        db.commit()
+        session["marked_paid"] = True
+    return session
 
 
 @app.get("/portal/{token}", response_class=HTMLResponse)

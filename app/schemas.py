@@ -25,6 +25,7 @@ class ClientIn(BaseModel):
 
 class ClientOut(ClientIn):
     id: int
+    archived: bool = False
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -49,6 +50,7 @@ class InvoiceOut(BaseModel):
     currency: str
     notes: str
     total: float
+    archived: bool = False
     items: List[LineItemOut]
     model_config = ConfigDict(from_attributes=True)
 

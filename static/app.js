@@ -50,7 +50,7 @@ async function refreshClients() {
       (c) => `<article class="item"><div class="row"><h3>${c.name}</h3><span>#${c.id}</span></div>
       <p>${c.company || "Independent"} · ${c.email || "no email"}</p>
       <p>${c.notes || ""}</p>
-      <div class="row actions"><button data-portal="${c.id}">Portal link</button></div></article>`
+      <div class="row actions"><button data-portal="${c.id}">Portal link</button><button data-archive-client="${c.id}">Archive</button></div></article>`
     )
     .join("");
   const sel = $("#invoice-client");
@@ -68,7 +68,7 @@ async function refreshInvoices() {
         <button data-pay="${i.id}">Mark paid</button>
         <a class="btn-link" href="/api/invoices/${i.id}/pdf" target="_blank" rel="noopener">PDF</a>
         <button data-checkout="${i.id}">Checkout</button>
-        <button data-email="${i.id}">Email</button>
+        <button data-email="${i.id}">Email</button><button data-archive-inv="${i.id}">Archive</button>
       </div></article>`
     )
     .join("");
@@ -267,5 +267,19 @@ document.getElementById("client-list")?.addEventListener("click", async (e) => {
   const res = await api(`/api/clients/${id}/portal-link`, { method: "POST" });
   prompt("Client portal link (copy):", res.url);
 });
+
+document.getElementById("client-list")?.addEventListener("click", async (e) => {
+  const id = e.target.dataset.archiveClient;
+  if (!id) return;
+  await api(`/api/clients/${id}/archive`, { method: "POST" });
+  await boot();
+});
+
+$("#invoice-list").addEventListener("click", async (e) => {
+  const id = e.target.dataset.archiveInv;
+  if (!id) return;
+  await api(`/api/invoices/${id}/archive`, { method: "POST" });
+  await boot();
+}, true);
 
 boot().catch((err) => console.error(err));

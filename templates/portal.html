@@ -24,6 +24,19 @@
       try { return Number(n||0).toLocaleString(undefined,{style:"currency",currency:c||"USD"}); }
       catch { return n + " " + c; }
     }
+    async function pay(invoiceId) {
+      const res = await fetch(`/api/portal/${token}/invoices/${invoiceId}/checkout`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { alert(data.detail || "Checkout failed"); return; }
+      if (data.mode === "demo") {
+        alert("Demo payment recorded. Reloading…");
+        // mark paid via webhook-shaped flow is server-side only; demo: call staff status not available
+        // rely on checkout demo path not marking here — user returns after live Stripe
+        location.reload();
+        return;
+      }
+      if (data.url) location.href = data.url;
+    }
     fetch("/api/portal/" + token).then(r => {
       if (!r.ok) throw new Error("Invalid or expired link");
       return r.json();
@@ -36,8 +49,15 @@
         <article class="item">
           <div class="row"><h3>${i.number}</h3><span class="status">${i.status}</span></div>
           <p>${money(i.total, i.currency)} · ${i.issue_date || ""}</p>
-          <a class="btn-link" href="${i.pdf}" target="_blank" rel="noopener">Download PDF</a>
+          <div class="row actions">
+            <a class="btn-link" href="${i.pdf}" target="_blank" rel="noopener">Download PDF</a>
+            ${i.payable ? `<button data-pay="${i.id}">Pay now</button>` : ""}
+          </div>
         </article>`).join("") || "<p class='sub'>No invoices yet.</p>";
+      document.getElementById("list").addEventListener("click", (e) => {
+        const id = e.target.dataset.pay;
+        if (id) pay(id);
+      });
     }).catch(err => {
       document.getElementById("title").textContent = "Link unavailable";
       document.getElementById("sub").textContent = err.message;

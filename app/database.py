@@ -14,6 +14,20 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_schema()
+
+
+def ensure_schema() -> None:
+    """Lightweight SQLite column adds for soft-archive — Mourad.Soltani."""
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table, col in (("clients", "archived"), ("invoices", "archived")):
+            if table not in insp.get_table_names():
+                continue
+            cols = {c["name"] for c in insp.get_columns(table)}
+            if col not in cols:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} BOOLEAN DEFAULT 0"))
 
 
 def get_db():

@@ -215,3 +215,35 @@ def test_portal_and_currency_stats(client):
         f"/api/invoices/{portal['invoices'][0]['id']}/email"
     ).json()
     assert mail.get("pdf_attached") is True or mail.get("pdf_bytes", 0) > 0
+
+
+
+def test_archive_and_portal_pay(client):
+    c = client.post("/api/clients", json={"name": "Archive Co", "email": "a@x.test"}).json()
+    inv = client.post(
+        "/api/invoices",
+        json={
+            "client_id": c["id"],
+            "status": "sent",
+            "currency": "USD",
+            "items": [{"description": "Work", "qty": 1, "unit_price": 100}],
+        },
+    ).json()
+    link = client.post(f"/api/clients/{c['id']}/portal-link").json()
+    assert "/portal/" in link["url"]
+    token = link["token"]
+    portal = client.get(f"/api/portal/{token}").json()
+    assert portal["client"]["name"] == "Archive Co"
+    assert portal["invoices"][0]["payable"] is True
+    pay = client.post(f"/api/portal/{token}/invoices/{inv['id']}/checkout").json()
+    assert pay["mode"] == "demo"
+    assert pay.get("marked_paid") is True
+    listed = client.get("/api/invoices").json()
+    assert next(x for x in listed if x["id"] == inv["id"])["status"] == "paid"
+    ar = client.post(f"/api/invoices/{inv['id']}/archive").json()
+    assert ar["archived"] is True
+    listed2 = client.get("/api/invoices").json()
+    assert all(x["id"] != inv["id"] for x in listed2)
+    client.post(f"/api/clients/{c['id']}/archive")
+    clients = client.get("/api/clients").json()
+    assert all(x["id"] != c["id"] for x in clients)

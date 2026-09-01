@@ -27,6 +27,7 @@ class Client(Base):
     email = Column(String(200), default="")
     company = Column(String(200), default="")
     notes = Column(Text, default="")
+    archived = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     invoices = relationship("Invoice", back_populates="client", cascade="all, delete-orphan")
     expenses = relationship("Expense", back_populates="client")
@@ -43,6 +44,7 @@ class Invoice(Base):
     status = Column(String(20), default="draft")  # draft, sent, paid, overdue
     currency = Column(String(8), default="USD")
     notes = Column(Text, default="")
+    archived = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     client = relationship("Client", back_populates="invoices")
     items = relationship("LineItem", back_populates="invoice", cascade="all, delete-orphan")

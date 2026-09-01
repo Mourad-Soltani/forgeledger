@@ -41,7 +41,10 @@ Clear scope. Fixed checkpoints. Written acceptance criteria. No surprise invoice
 
 
 def dashboard_stats(db: Session) -> dict:
-    invoices = db.query(models.Invoice).all()
+    invoices = [
+        inv for inv in db.query(models.Invoice).all()
+        if not getattr(inv, "archived", False)
+    ]
     expenses = db.query(models.Expense).all()
     billed = sum(inv.total for inv in invoices)
     paid = sum(inv.total for inv in invoices if inv.status == "paid")
@@ -60,7 +63,7 @@ def dashboard_stats(db: Session) -> dict:
         if inv.status in ("sent", "overdue", "draft"):
             slot["outstanding"] = round(slot["outstanding"] + inv.total, 2)
     return {
-        "clients": db.query(models.Client).count(),
+        "clients": db.query(models.Client).filter(models.Client.archived.is_(False)).count(),
         "invoices": len(invoices),
         "proposals": db.query(models.Proposal).count(),
         "billed": round(billed, 2),
