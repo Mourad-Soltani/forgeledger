@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ForgeLedger — Mourad.Soltani</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow">Mourad.Soltani · Commercial product</p>
+      <h1>ForgeLedger</h1>
+      <p class="sub">Invoice, expense and proposal command center for freelancers who want to close better clients.</p>
+    </div>
+    <div class="badge">v1.0 · signed</div>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <nav class="tabs">
+    <button data-tab="clients" class="on">Clients</button>
+    <button data-tab="invoices">Invoices</button>
+    <button data-tab="expenses">Expenses</button>
+    <button data-tab="proposals">Proposals</button>
+  </nav>
+
+  <main>
+    <section id="clients" class="panel on">
+      <form id="client-form" class="card">
+        <h2>New client</h2>
+        <input name="name" placeholder="Name" required />
+        <input name="email" placeholder="Email" />
+        <input name="company" placeholder="Company" />
+        <textarea name="notes" placeholder="Notes"></textarea>
+        <button type="submit">Save client</button>
+      </form>
+      <div id="client-list" class="list"></div>
+    </section>
+
+    <section id="invoices" class="panel">
+      <form id="invoice-form" class="card">
+        <h2>New invoice</h2>
+        <select name="client_id" id="invoice-client" required></select>
+        <input name="item_desc" placeholder="Line item description" required />
+        <input name="qty" type="number" step="0.1" value="1" />
+        <input name="unit_price" type="number" step="0.01" placeholder="Unit price" required />
+        <select name="status">
+          <option value="draft">draft</option>
+          <option value="sent">sent</option>
+          <option value="paid">paid</option>
+        </select>
+        <button type="submit">Issue invoice</button>
+      </form>
+      <div id="invoice-list" class="list"></div>
+    </section>
+
+    <section id="expenses" class="panel">
+      <form id="expense-form" class="card">
+        <h2>New expense</h2>
+        <input name="category" placeholder="Category" value="software" />
+        <input name="description" placeholder="Description" required />
+        <input name="amount" type="number" step="0.01" required />
+        <label class="check"><input type="checkbox" name="billable" checked /> Billable</label>
+        <button type="submit">Save expense</button>
+      </form>
+      <div id="expense-list" class="list"></div>
+    </section>
+
+    <section id="proposals" class="panel">
+      <form id="proposal-form" class="card">
+        <h2>Generate proposal</h2>
+        <input name="title" placeholder="Proposal title" required />
+        <input name="client_name" placeholder="Client name" />
+        <textarea name="problem" placeholder="Problem"></textarea>
+        <textarea name="solution" placeholder="Solution"></textarea>
+        <textarea name="scope" placeholder="Scope"></textarea>
+        <input name="investment" type="number" step="0.01" placeholder="Investment USD" />
+        <input name="timeline" placeholder="Timeline" />
+        <button type="submit">Compose proposal</button>
+      </form>
+      <div id="proposal-list" class="list"></div>
+    </section>
+  </main>
+
+  <footer>
+    ForgeLedger © 2026 · Designed, built and signed by <strong>Mourad.Soltani</strong>
+  </footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>
