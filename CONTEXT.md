@@ -1,18 +1,17 @@
 # Dev-team context snapshot — Mourad.Soltani
 
 ## Product
-ForgeLedger v1.9.0
+ForgeLedger v1.10.0
 
 ## Done
-- Full billing + portal + recurring + reminders + CSV + multi-user API keys
-- UI login (/login) + Settings (auth + webhook status + Stripe Billing Portal)
-- Valuation, Docker, cron
-- Outreach sent 1:1
+- Full product surface through auth, portal pay, recurring, reminders
+- Founding license Stripe SKU ($1,490) + /onboarding checklist
+- Valuation + sales docs
+- 1:1 outreach sent
 
-## Next (optional)
-- Hosted onboarding checklist
-- First paid founding-license checkout SKU
-- Readme sales CTA
+## Next (commercial)
+- Close founding licenses
+- Stripe live keys + webhook on production host
 
 ## Signature
 Mourad.Soltani

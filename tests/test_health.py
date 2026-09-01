@@ -333,3 +333,16 @@ def test_login_and_stripe_status(client):
     assert portal.status_code == 200
     body = portal.json()
     assert body["mode"] == "demo"
+
+
+
+def test_founding_license_and_onboarding(client):
+    page = client.get("/onboarding")
+    assert page.status_code == 200
+    assert "Founding" in page.text or "1,490" in page.text or "1490" in page.text or "checklist" in page.text.lower()
+    assert "Mourad.Soltani" in page.text
+    res = client.post("/api/commerce/founding-license", json={}).json()
+    assert res["mode"] == "demo"
+    assert res["url"]
+    assert res["amount_cents"] == 149000
+    assert res["author"] == "Mourad.Soltani"

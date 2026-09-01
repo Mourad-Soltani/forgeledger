@@ -19,6 +19,7 @@ from .stripe_checkout import (
     invoice_id_from_event,
     create_billing_portal_session,
     webhook_status,
+    create_founding_license_checkout,
 )
 from .license import validate_license, active_license, issue_key
 from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured, SUPPORTED
@@ -608,6 +609,25 @@ def home():
 @app.get("/login", response_class=HTMLResponse)
 def login_page():
     return FileResponse(ROOT / "templates" / "login.html")
+
+
+@app.get("/onboarding", response_class=HTMLResponse)
+def onboarding_page():
+    return FileResponse(ROOT / "templates" / "onboarding.html")
+
+
+@app.post("/api/commerce/founding-license")
+def buy_founding_license(payload: dict | None = None):
+    email = (payload or {}).get("email")
+    base = os.environ.get("FORGELEDGER_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
+    session = create_founding_license_checkout(
+        email=email,
+        success_url=f"{base}/onboarding?licensed=1",
+        cancel_url=f"{base}/onboarding?canceled=1",
+    )
+    if session.get("mode") == "error":
+        raise HTTPException(502, session.get("error") or "Checkout failed")
+    return session
 
 
 @app.get("/success", response_class=HTMLResponse)

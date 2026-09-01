@@ -164,3 +164,63 @@ def webhook_status() -> dict:
         "webhook_path": "/api/stripe/webhook",
         "author": "Mourad.Soltani",
     }
+
+
+FOUNDING_LICENSE_AMOUNT_CENTS = int(__import__("os").environ.get("FORGELEDGER_FOUNDING_PRICE_CENTS", "149000"))
+
+
+def create_founding_license_checkout(
+    *,
+    email: str | None = None,
+    success_url: str = "http://127.0.0.1:8080/onboarding?licensed=1",
+    cancel_url: str = "http://127.0.0.1:8080/onboarding?canceled=1",
+) -> dict:
+    """One-time founding license SKU ($1,490 default)."""
+    import secrets
+    key = os.environ.get("STRIPE_SECRET_KEY")
+    amount = FOUNDING_LICENSE_AMOUNT_CENTS
+    if not key:
+        demo_id = f"cs_license_{secrets.token_hex(6)}"
+        return {
+            "id": demo_id,
+            "url": f"{success_url}&session_id={demo_id}&demo=1",
+            "mode": "demo",
+            "amount_cents": amount,
+            "product": "ForgeLedger Founding License",
+            "author": "Mourad.Soltani",
+            "message": "Demo license checkout — set STRIPE_SECRET_KEY for live charges.",
+        }
+    try:
+        import stripe
+        stripe.api_key = key
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            success_url=success_url + "&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=cancel_url,
+            customer_email=email or None,
+            line_items=[{
+                "quantity": 1,
+                "price_data": {
+                    "currency": "usd",
+                    "unit_amount": amount,
+                    "product_data": {
+                        "name": "ForgeLedger Founding License",
+                        "description": "Lifetime source + white-label rights · Mourad.Soltani",
+                    },
+                },
+            }],
+            metadata={
+                "product": "founding_license",
+                "author": "Mourad.Soltani",
+            },
+        )
+        return {
+            "id": session.id,
+            "url": session.url,
+            "mode": "live",
+            "amount_cents": amount,
+            "product": "ForgeLedger Founding License",
+            "author": "Mourad.Soltani",
+        }
+    except Exception as exc:
+        return {"id": None, "url": None, "mode": "error", "error": str(exc), "author": "Mourad.Soltani"}

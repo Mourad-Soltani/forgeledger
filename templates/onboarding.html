@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Onboarding — ForgeLedger · Mourad.Soltani</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    .ob { max-width: 640px; margin: 2rem auto; padding: 0 1rem 3rem; }
+    .ob ol { line-height: 1.7; color: var(--muted); }
+    .ob li { margin: 0.4rem 0; }
+    .price { font-size: 1.8rem; color: var(--good); }
+  </style>
+</head>
+<body>
+  <main class="ob">
+    <p class="eyebrow">Mourad.Soltani · Commercial</p>
+    <h1>Founding license &amp; go-live</h1>
+    <p class="sub">Close the product, then run this checklist on your host.</p>
+    <p class="price">$1,490 <span class="sub">lifetime founding license</span></p>
+    <button type="button" id="buy">Buy founding license</button>
+    <p id="msg" class="sub"></p>
+    <h2>Hosted checklist</h2>
+    <ol>
+      <li>Deploy with Docker: <code>docker compose up --build -d</code></li>
+      <li>Set <code>FORGELEDGER_PUBLIC_URL</code> to your HTTPS origin</li>
+      <li>Add <code>STRIPE_SECRET_KEY</code> + <code>STRIPE_WEBHOOK_SECRET</code> → webhook <code>/api/stripe/webhook</code></li>
+      <li>Optional studio lock: <code>FORGELEDGER_REQUIRE_AUTH=1</code> + owner API key</li>
+      <li>Activate white-label: <code>FORGELEDGER_LICENSE_KEY</code> from admin issue or purchase flow</li>
+      <li>Cron: daily <code>scripts/cron_jobs.sh</code> (recurring + reminders)</li>
+      <li>Create first client → invoice → portal link → test Pay now</li>
+      <li>Export CSV backup weekly</li>
+    </ol>
+    <p><a class="btn-link" href="/">Open console</a> · <a class="btn-link" href="/login">API login</a></p>
+    <footer>ForgeLedger © 2026 · Mourad.Soltani</footer>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const msg = document.getElementById("msg");
+    if (params.get("licensed") === "1") {
+      msg.textContent = params.get("demo") === "1"
+        ? "Demo license checkout complete. Issue a real key via admin or set FORGELEDGER_LICENSE_KEY."
+        : "Payment received. You will receive license activation instructions.";
+    }
+    if (params.get("canceled") === "1") msg.textContent = "Checkout canceled — no charge.";
+    document.getElementById("buy").onclick = async () => {
+      const res = await fetch("/api/commerce/founding-license", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = await res.json();
+      if (data.url) location.href = data.url;
+      else alert(data.error || data.message || "Unavailable");
+    };
+  </script>
+</body>
+</html>
