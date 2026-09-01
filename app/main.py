@@ -20,6 +20,9 @@ from .stripe_checkout import (
 )
 from .license import validate_license, active_license, issue_key
 from .email_invoice import build_invoice_email, send_invoice_email, smtp_configured, SUPPORTED
+from .jobs import run_recurring, run_reminders
+import csv
+import io
 from .portal import mint_portal_token, verify_portal_token
 import os
 
@@ -439,6 +442,86 @@ def portal_checkout(token: str, invoice_id: int, db: Session = Depends(get_db)):
 @app.get("/portal/{token}", response_class=HTMLResponse)
 def portal_page(token: str):
     return FileResponse(ROOT / "templates" / "portal.html")
+
+
+@app.get("/api/recurring", response_model=list[schemas.RecurringOut])
+def list_recurring(db: Session = Depends(get_db)):
+    return db.query(models.RecurringInvoice).order_by(models.RecurringInvoice.id.desc()).all()
+
+
+@app.post("/api/recurring", response_model=schemas.RecurringOut, status_code=201)
+def create_recurring(payload: schemas.RecurringIn, db: Session = Depends(get_db)):
+    client = db.get(models.Client, payload.client_id)
+    if not client:
+        raise HTTPException(400, "Unknown client")
+    data = payload.model_dump()
+    if not data.get("next_run"):
+        data["next_run"] = date.today()
+    row = models.RecurringInvoice(**data)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.post("/api/recurring/{rid}/toggle")
+def toggle_recurring(rid: int, db: Session = Depends(get_db)):
+    row = db.get(models.RecurringInvoice, rid)
+    if not row:
+        raise HTTPException(404, "Not found")
+    row.active = not bool(row.active)
+    db.commit()
+    return {"id": rid, "active": row.active, "author": "Mourad.Soltani"}
+
+
+@app.post("/api/jobs/run-recurring")
+def job_recurring(db: Session = Depends(get_db)):
+    return run_recurring(db)
+
+
+@app.post("/api/jobs/run-reminders")
+def job_reminders(db: Session = Depends(get_db)):
+    return run_reminders(db)
+
+
+@app.get("/api/export/invoices.csv")
+def export_invoices_csv(include_archived: bool = False, db: Session = Depends(get_db)):
+    q = db.query(models.Invoice)
+    if not include_archived:
+        q = q.filter(models.Invoice.archived.is_(False))
+    rows = q.order_by(models.Invoice.id.asc()).all()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["id", "number", "client_id", "status", "currency", "total", "issue_date", "due_date", "archived"])
+    for r in rows:
+        w.writerow([
+            r.id, r.number, r.client_id, r.status, r.currency, r.total,
+            r.issue_date, r.due_date, int(bool(getattr(r, "archived", False))),
+        ])
+    data = buf.getvalue()
+    return Response(
+        content=data,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="forgeledger-invoices.csv"'},
+    )
+
+
+@app.get("/api/export/clients.csv")
+def export_clients_csv(include_archived: bool = False, db: Session = Depends(get_db)):
+    q = db.query(models.Client)
+    if not include_archived:
+        q = q.filter(models.Client.archived.is_(False))
+    rows = q.order_by(models.Client.id.asc()).all()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["id", "name", "email", "company", "archived"])
+    for r in rows:
+        w.writerow([r.id, r.name, r.email, r.company, int(bool(getattr(r, "archived", False)))])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="forgeledger-clients.csv"'},
+    )
 
 
 @app.get("/", response_class=HTMLResponse)

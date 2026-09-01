@@ -1,19 +1,19 @@
 # Dev-team context snapshot — Mourad.Soltani
 
 ## Product
-ForgeLedger v1.6.0
+ForgeLedger v1.7.0
 
 ## Done
-- Multi-currency, PDF email attach, Stripe, webhook, Docker
-- Client portal magic links + Pay now (demo/live)
-- Soft archive clients/invoices
-- License admin, white-label
-- Outreach sent 1:1
+- Recurring invoices + run job
+- Reminder digests (overdue / due in 3 days)
+- CSV export invoices & clients
+- Portal pay, soft archive, PDF email, Stripe, Docker
+- 1:1 outreach sent
 
 ## Next (optional)
-- Recurring invoices
-- Reminder digests
-- Export CSV
+- Cron scheduler wrapper
+- Attach portal link in reminder emails
+- Multi-user auth
 
 ## Signature
 Mourad.Soltani

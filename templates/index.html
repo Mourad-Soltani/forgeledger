@@ -23,6 +23,7 @@
     <button data-tab="invoices">Invoices</button>
     <button data-tab="expenses">Expenses</button>
     <button data-tab="proposals">Proposals</button>
+    <button data-tab="recurring">Recurring</button>
   </nav>
 
   <main>
@@ -96,6 +97,33 @@
       </form>
       <div id="proposal-list" class="list"></div>
     </section>
+
+    <section id="recurring" class="panel">
+      <form id="recurring-form" class="card">
+        <h2>Recurring invoice</h2>
+        <select name="client_id" id="recurring-client" required></select>
+        <input name="description" placeholder="Description" value="Monthly retainer" />
+        <input name="amount" type="number" step="0.01" placeholder="Amount" required />
+        <select name="currency">
+          <option>USD</option><option>EUR</option><option>GBP</option>
+        </select>
+        <select name="cadence">
+          <option value="monthly">monthly</option>
+          <option value="weekly">weekly</option>
+          <option value="quarterly">quarterly</option>
+        </select>
+        <button type="submit">Schedule</button>
+      </form>
+      <div class="card">
+        <h2>Jobs & export</h2>
+        <button type="button" id="run-recurring">Run due recurrings</button>
+        <button type="button" id="run-reminders">Send reminders</button>
+        <p><a class="btn-link" href="/api/export/invoices.csv">Export invoices CSV</a>
+        · <a class="btn-link" href="/api/export/clients.csv">Export clients CSV</a></p>
+      </div>
+      <div id="recurring-list" class="list"></div>
+    </section>
+
   </main>
 
   <footer>

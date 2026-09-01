@@ -93,3 +93,20 @@ class HealthOut(BaseModel):
     author: str
     version: str
     checks: dict
+
+
+class RecurringIn(BaseModel):
+    client_id: int
+    cadence: str = "monthly"
+    next_run: Optional[date] = None
+    currency: str = "USD"
+    description: str = "Retainer"
+    amount: float = 0.0
+    active: bool = True
+
+
+class RecurringOut(RecurringIn):
+    id: int
+    last_invoice_id: Optional[int] = None
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)

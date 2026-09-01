@@ -92,3 +92,18 @@ class Proposal(Base):
     timeline = Column(String(200), default="")
     body = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RecurringInvoice(Base):
+    __tablename__ = "recurring_invoices"
+
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    cadence = Column(String(20), default="monthly")  # weekly, monthly, quarterly
+    next_run = Column(Date, nullable=False)
+    currency = Column(String(8), default="USD")
+    description = Column(String(400), default="Retainer")
+    amount = Column(Float, default=0.0)
+    active = Column(Boolean, default=True)
+    last_invoice_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

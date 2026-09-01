@@ -247,3 +247,35 @@ def test_archive_and_portal_pay(client):
     client.post(f"/api/clients/{c['id']}/archive")
     clients = client.get("/api/clients").json()
     assert all(x["id"] != c["id"] for x in clients)
+
+
+
+def test_recurring_reminders_csv(client):
+    c = client.post("/api/clients", json={"name": "Retainer Co", "email": "r@x.test"}).json()
+    rec = client.post(
+        "/api/recurring",
+        json={
+            "client_id": c["id"],
+            "description": "Monthly",
+            "amount": 2500,
+            "currency": "USD",
+            "cadence": "monthly",
+            "next_run": "2020-01-01",
+        },
+    ).json()
+    assert rec["amount"] == 2500
+    ran = client.post("/api/jobs/run-recurring").json()
+    assert ran["count"] >= 1
+    invs = client.get("/api/invoices").json()
+    assert any(i["client_id"] == c["id"] for i in invs)
+    # force due soon
+    inv = next(i for i in invs if i["client_id"] == c["id"])
+    # reminders demo
+    rem = client.post("/api/jobs/run-reminders").json()
+    assert rem["author"] == "Mourad.Soltani"
+    csv_inv = client.get("/api/export/invoices.csv")
+    assert csv_inv.status_code == 200
+    assert "text/csv" in csv_inv.headers["content-type"]
+    assert "number" in csv_inv.text
+    csv_cli = client.get("/api/export/clients.csv")
+    assert "Retainer Co" in csv_cli.text

@@ -55,6 +55,8 @@ async function refreshClients() {
     .join("");
   const sel = $("#invoice-client");
   sel.innerHTML = rows.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
+  const rsel = $("#recurring-client");
+  if (rsel) rsel.innerHTML = sel.innerHTML;
 }
 
 async function refreshInvoices() {
@@ -104,6 +106,18 @@ async function refreshProposals() {
     .join("");
 }
 
+
+async function refreshRecurring() {
+  const box = $("#recurring-list");
+  if (!box) return;
+  const rows = await api("/api/recurring");
+  box.innerHTML = rows.map(r => `<article class="item">
+    <div class="row"><h3>${r.description}</h3><span>${r.active ? "active" : "paused"}</span></div>
+    <p>${money(r.amount, r.currency)} · ${r.cadence} · next ${r.next_run}</p>
+    <button data-toggle-rec="${r.id}">Toggle</button>
+  </article>`).join("") || "<p class='sub'>No schedules</p>";
+}
+
 async function boot() {
   await Promise.all([
     applyBrand(),
@@ -112,6 +126,7 @@ async function boot() {
     refreshInvoices(),
     refreshExpenses(),
     refreshProposals(),
+    refreshRecurring(),
   ]);
 }
 
@@ -283,3 +298,39 @@ $("#invoice-list").addEventListener("click", async (e) => {
 }, true);
 
 boot().catch((err) => console.error(err));
+
+
+document.getElementById("recurring-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  await api("/api/recurring", {
+    method: "POST",
+    body: JSON.stringify({
+      client_id: Number(f.get("client_id")),
+      description: f.get("description"),
+      amount: Number(f.get("amount")),
+      currency: f.get("currency") || "USD",
+      cadence: f.get("cadence") || "monthly",
+    }),
+  });
+  e.target.reset();
+  await boot();
+});
+
+document.getElementById("run-recurring")?.addEventListener("click", async () => {
+  const res = await api("/api/jobs/run-recurring", { method: "POST" });
+  alert(`Created ${res.count} invoice(s)`);
+  await boot();
+});
+
+document.getElementById("run-reminders")?.addEventListener("click", async () => {
+  const res = await api("/api/jobs/run-reminders", { method: "POST" });
+  alert(`Reminders processed: ${res.count}`);
+});
+
+document.getElementById("recurring-list")?.addEventListener("click", async (e) => {
+  const id = e.target.dataset.toggleRec;
+  if (!id) return;
+  await api(`/api/recurring/${id}/toggle`, { method: "POST" });
+  await boot();
+});
